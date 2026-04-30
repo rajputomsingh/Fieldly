@@ -125,41 +125,6 @@ export function StatsCards({ stats }: StatsCardsProps) {
           ))}
         </div>
       </div>
-
-      {/* Secondary row */}
-      <div className="grid gap-4 md:grid-cols-6">
-        <MiniCard label="Total Listings" value={stats.total} />
-        <MiniCard label="Active" value={stats.active} />
-        <MiniCard label="Pending" value={stats.pending} />
-        <MiniCard label="Revenue" value={`₹${stats.revenue}`} />
-        <MiniCard label="Auctions" value="--" />
-        <MiniCard label="Bids" value="--" />
-      </div>
     </div>
-  );
-}
-
-function MiniCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <Card
-      className="rounded-xl
-      bg-white/50 dark:bg-white/5
-      backdrop-blur-xl
-      border border-white/30 dark:border-white/10
-      shadow-sm"
-    >
-      <CardContent className="p-4">
-        <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="text-lg font-semibold text-gray-900 dark:text-white">
-          {value}
-        </p>
-      </CardContent>
-    </Card>
   );
 }
