@@ -1,4 +1,4 @@
-// components/FieldlyBentoCards.tsx
+// components/FieldlyInvestmentBentoCards.tsx
 "use client";
 
 import { motion } from "framer-motion";
