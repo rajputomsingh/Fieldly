@@ -87,7 +87,9 @@ export default function AdminListingsPage() {
     sortBy: "createdAt",
     sortOrder: "desc",
   });
-  const [selectedListings, setSelectedListings] = useState<Set<string>>(new Set());
+  const [selectedListings, setSelectedListings] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Dialog states
   const [dialogState, setDialogState] = useState<{
@@ -96,7 +98,9 @@ export default function AdminListingsPage() {
   }>({ type: null, open: false });
 
   // Selected item state
-  const [selectedListing, setSelectedListing] = useState<AdminListing | null>(null);
+  const [selectedListing, setSelectedListing] = useState<AdminListing | null>(
+    null,
+  );
   const [reviewAction, setReviewAction] = useState<ReviewAction>("APPROVE");
   const [reviewNotes, setReviewNotes] = useState("");
   const [newStatus, setNewStatus] = useState("");
@@ -138,7 +142,9 @@ export default function AdminListingsPage() {
         hasPrev: data.pagination.page > 1,
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load listings");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load listings",
+      );
     } finally {
       setLoading(false);
     }
@@ -155,7 +161,7 @@ export default function AdminListingsPage() {
     endpoint: string,
     body: object,
     successMessage: string,
-    options?: { method?: string; onSuccess?: (data: T) => void }
+    options?: { method?: string; onSuccess?: (data: T) => void },
   ): Promise<boolean> => {
     setActionLoading(true);
     try {
@@ -186,9 +192,13 @@ export default function AdminListingsPage() {
     if (!selectedListing || !newStatus) return;
     await handleApiAction(
       "/api/admin/listings/status",
-      { listingId: selectedListing.id, status: newStatus, reason: statusChangeReason },
+      {
+        listingId: selectedListing.id,
+        status: newStatus,
+        reason: statusChangeReason,
+      },
       `Listing status changed to ${newStatus}`,
-      { method: "PUT" }
+      { method: "PUT" },
     );
   };
 
@@ -196,8 +206,12 @@ export default function AdminListingsPage() {
     if (!selectedListing) return;
     await handleApiAction(
       "/api/admin/listings/review",
-      { listingId: selectedListing.id, action: reviewAction, notes: reviewNotes },
-      `Listing ${reviewAction === "APPROVE" ? "approved" : "rejected"} successfully`
+      {
+        listingId: selectedListing.id,
+        action: reviewAction,
+        notes: reviewNotes,
+      },
+      `Listing ${reviewAction === "APPROVE" ? "approved" : "rejected"} successfully`,
     );
   };
 
@@ -211,9 +225,13 @@ export default function AdminListingsPage() {
     };
     await handleApiAction(
       "/api/admin/listings/auction-status",
-      { listingId: selectedListing.id, auctionStatus: auctionAction, reason: auctionReason },
+      {
+        listingId: selectedListing.id,
+        auctionStatus: auctionAction,
+        reason: auctionReason,
+      },
       messages[auctionAction],
-      { method: "PUT" }
+      { method: "PUT" },
     );
   };
 
@@ -221,9 +239,13 @@ export default function AdminListingsPage() {
     if (selectedListings.size === 0 || !bulkNewStatus) return;
     await handleApiAction(
       "/api/admin/listings/bulk-status",
-      { listingIds: Array.from(selectedListings), status: bulkNewStatus, reason: bulkStatusReason },
+      {
+        listingIds: Array.from(selectedListings),
+        status: bulkNewStatus,
+        reason: bulkStatusReason,
+      },
       `Changed status for listings to ${bulkNewStatus}`,
-      { method: "PUT" }
+      { method: "PUT" },
     );
   };
 
@@ -232,7 +254,7 @@ export default function AdminListingsPage() {
     await handleApiAction(
       "/api/admin/listings/bulk",
       { listingIds: Array.from(selectedListings), action },
-      `Successfully ${action}ed listings`
+      `Successfully ${action}ed listings`,
     );
   };
 
@@ -251,13 +273,19 @@ export default function AdminListingsPage() {
     setAuctionAction("LIVE");
   };
 
-  const openDialog = (type: "status" | "review" | "bulkStatus" | "auction", listing?: AdminListing) => {
+  const openDialog = (
+    type: "status" | "review" | "bulkStatus" | "auction",
+    listing?: AdminListing,
+  ) => {
     if (listing) setSelectedListing(listing);
     setDialogState({ type, open: true });
   };
 
   const getStatusBadge = (status: string) => {
-    const config = STATUS_BADGE_CONFIG[status] || { variant: "outline" as const, label: status };
+    const config = STATUS_BADGE_CONFIG[status] || {
+      variant: "outline" as const,
+      label: status,
+    };
     const Icon = config.icon;
     return (
       <Badge variant={config.variant} className="gap-1">
@@ -269,22 +297,33 @@ export default function AdminListingsPage() {
 
   const getAuctionStatusBadge = (status?: string) => {
     if (!status) return null;
-    const config = AUCTION_STATUS_BADGE_CONFIG[status] || { variant: "outline" as const, label: status };
+    const config = AUCTION_STATUS_BADGE_CONFIG[status] || {
+      variant: "outline" as const,
+      label: status,
+    };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const getListingTypeBadge = (type: string) => {
-    const config = LISTING_TYPE_BADGE_CONFIG[type] || { label: type, color: "bg-gray-100 text-gray-800" };
+    const config = LISTING_TYPE_BADGE_CONFIG[type] || {
+      label: type,
+      color: "bg-gray-100 text-gray-800",
+    };
     return <Badge className={config.color}>{config.label}</Badge>;
   };
 
   const getAvailableStatuses = (currentStatus: string) => {
     const allowedTransitions = VALID_TRANSITIONS[currentStatus] || [];
-    return AVAILABLE_STATUSES.filter((s) => allowedTransitions.includes(s.value));
+    return AVAILABLE_STATUSES.filter((s) =>
+      allowedTransitions.includes(s.value),
+    );
   };
 
-  const getAvailableAuctionActions = (listing: AdminListing): AuctionAction[] => {
-    if (listing.status !== "ACTIVE" || listing.listingType !== "OPEN_BIDDING") return [];
+  const getAvailableAuctionActions = (
+    listing: AdminListing,
+  ): AuctionAction[] => {
+    if (listing.status !== "ACTIVE" || listing.listingType !== "OPEN_BIDDING")
+      return [];
 
     const actions: AuctionAction[] = [];
     const current = listing.auctionStatus;
@@ -298,7 +337,9 @@ export default function AdminListingsPage() {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedListings(checked ? new Set(listings.map((l) => l.id)) : new Set());
+    setSelectedListings(
+      checked ? new Set(listings.map((l) => l.id)) : new Set(),
+    );
   };
 
   const handleSelectOne = (id: string, checked: boolean) => {
@@ -314,7 +355,7 @@ export default function AdminListingsPage() {
   };
 
   const handleViewListing = (id: string) => {
-    router.push(`/admin/listings/${id}`);
+    router.push(`/marketplace/listings/${id}`);
   };
 
   const handleApproveListing = (listing: AdminListing) => {
@@ -339,7 +380,10 @@ export default function AdminListingsPage() {
     openDialog("status", listing);
   };
 
-  const handleAuctionAction = (listing: AdminListing, action: AuctionAction) => {
+  const handleAuctionAction = (
+    listing: AdminListing,
+    action: AuctionAction,
+  ) => {
     setSelectedListing(listing);
     setAuctionAction(action);
     openDialog("auction", listing);
@@ -382,8 +426,7 @@ export default function AdminListingsPage() {
       </div>
 
       {/* Stats Cards - Using mapper for type safety */}
-        <StatsCards stats={mapListingStats(stats)} />
-     
+      <StatsCards stats={mapListingStats(stats)} />
 
       {/* Filters */}
       <ListingFilters
