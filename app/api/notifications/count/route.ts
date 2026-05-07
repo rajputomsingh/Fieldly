@@ -1,29 +1,36 @@
 // app/api/notifications/count/route.ts
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { getDbUserId } from "@/lib/auth-utils";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const dbUserId = await getDbUserId();
+
+    if (!dbUserId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const count = await prisma.notification.count({
       where: {
-        userId,
+        userId: dbUserId,
         isRead: false,
       },
     });
 
-    return NextResponse.json({ count });
-  } catch (error) {
-    console.error('Error fetching notification count:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { count },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Notification count error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
