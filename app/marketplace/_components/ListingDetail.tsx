@@ -771,15 +771,8 @@ export function ListingDetail({ listing }: ListingDetailProps) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="
-    relative overflow-hidden
-    px-5 py-4
-    shadow-[0_8px_30px_rgba(0,0,0,0.06)]
-  "
+          className="relative overflow-hidden"
         >
-          {/* subtle top accent */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-neutral-400/60 to-transparent" />
-
           <div className="flex items-start gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -790,7 +783,6 @@ export function ListingDetail({ listing }: ListingDetailProps) {
                 <span
                   className="
             rounded-full border border-neutral-200 dark:border-neutral-700
-            bg-neutral-100 dark:bg-neutral-900
             px-2 py-0.5
             text-[10px] font-medium uppercase tracking-[0.12em]
             text-neutral-600 dark:text-neutral-400

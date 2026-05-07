@@ -7,6 +7,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import FieldlyAssist from "@/components/FieldlyAssist";
 import { DashboardProvider } from "@/contexts/DashboardContext";
 import { QueryProvider } from "@/lib/react-query/providers";
+import { NotificationInitializer } from "@/components/shared/notifications/NotificationInitializer";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
@@ -27,13 +28,14 @@ export default function RootLayout({
         <ClerkProvider>
           <QueryProvider>
             <DashboardProvider>
+              {/* Notification realtime connection */}
+              <NotificationInitializer />
+
               <HeaderRoot />
               <main className="min-h-screen w-full flex flex-col items-center">
-                <div className="w-full flex-1">
-                  {children}
-                </div>
+                <div className="w-full flex-1">{children}</div>
               </main>
-              <FieldlyAssist />   
+              <FieldlyAssist />
               <Footer />
               <Toaster position="top-right" richColors />
             </DashboardProvider>

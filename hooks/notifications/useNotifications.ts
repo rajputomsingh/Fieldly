@@ -1,52 +1,46 @@
 // hooks/notifications/useNotifications.ts
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '@/services/notifications/notificationService';
+import { useNotificationStore } from '@/stores/notification.store';
+import type { PaginatedNotifications } from '@/types/notification.types';
 
-export const useNotifications = ({ 
-  userId, 
-  enabled = true,
-  limit = 20 
-}: { 
+interface UseNotificationsOptions {
   userId: string;
   enabled?: boolean;
   limit?: number;
-}) => {
+}
+
+export function useNotifications({ 
+  userId, 
+  enabled = false,
+  limit = 20 
+}: UseNotificationsOptions) {
   const queryClient = useQueryClient();
 
   const {
     data,
     isLoading,
-    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<PaginatedNotifications>({
     queryKey: ['notifications', userId],
-    queryFn: async ({ pageParam = 1 }) => {
-      const result = await notificationService.getNotifications({ 
-        page: pageParam, 
-        limit,
-        _t: Date.now() // Cache buster - now properly typed
-      });
-      return result;
+    queryFn: async ({ pageParam }) => {
+      const page = typeof pageParam === 'number' ? pageParam : 1;
+      return notificationService.getNotifications({ page, limit });
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.pagination.hasNext) {
+      if (lastPage?.pagination?.hasNext) {
         return lastPage.pagination.page + 1;
       }
       return undefined;
     },
     initialPageParam: 1,
     enabled,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: 'always',
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
-
-  const notifications = data?.pages.flatMap(page => page.notifications) ?? [];
 
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId: string) => 
@@ -65,10 +59,11 @@ export const useNotifications = ({
     },
   });
 
+  const notifications = data?.pages?.flatMap(page => page.notifications) ?? [];
+
   return {
     notifications,
     isLoading,
-    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -76,4 +71,28 @@ export const useNotifications = ({
     markAsRead: markAsReadMutation.mutateAsync,
     markAllAsRead: markAllAsReadMutation.mutateAsync,
   };
-};
+}
+
+export function useNotificationCount(userId: string) {
+  const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
+
+  const { refetch } = useQuery({
+    queryKey: ['notification-count', userId],
+    queryFn: async () => {
+      const result = await notificationService.getUnreadCount();
+      setUnreadCount(result.count);
+      return result;
+    },
+    enabled: !!userId,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
+  });
+
+  const storeCount = useNotificationStore((state) => state.unreadCount);
+
+  return {
+    unreadCount: storeCount,
+    refetch,
+  };
+}

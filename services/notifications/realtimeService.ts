@@ -34,6 +34,7 @@ class RealtimeService {
     this.pusher = new Pusher(pusherKey, {
       cluster: pusherCluster,
       forceTLS: true,
+      authEndpoint: '/api/pusher/auth', // ✅ ADDED THIS LINE
     });
 
     this.pusher.connection.bind('connected', () => {
