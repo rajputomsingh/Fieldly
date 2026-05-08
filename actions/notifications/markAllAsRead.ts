@@ -13,9 +13,20 @@ export async function markAllNotificationsAsRead() {
       throw new Error('Unauthorized');
     }
 
+    // Find user in db first
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { id: true }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // CHANGE/CONVERT userId → user.id
     const result = await prisma.notification.updateMany({
       where: {
-        userId,
+        userId: user.id,  
         isRead: false,
       },
       data: {
