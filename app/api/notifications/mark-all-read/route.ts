@@ -11,9 +11,20 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Find champ in db first 
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: userId },
+      select: { id: true }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // ~CHANGE userId → user.id
     const result = await prisma.notification.updateMany({
       where: {
-        userId,
+        userId: user.id,  
         isRead: false,
       },
       data: {
