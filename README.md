@@ -43,7 +43,7 @@ Fieldly addresses structural inefficiencies in farmland leasing and agricultural
 
 ### Mission
 
-Democratize access to agricultural land and intelligence by building a trusted, transparent, and technology-driven ecosystem connecting landowners with farmers.
+Build trusted digital infrastructure for farmland leasing, agricultural coordination, and rural intelligence systems.
 
 ## Problem Statement
 
@@ -92,7 +92,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 
 | Layer | Purpose | Technologies |
 |---|---|---|
-| Client Layer | Web application for landowners and farmers | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
+| Client Layer | Web application for landowners and farmers | Next.js, React, TypeScript 5, Tailwind CSS 4 |
 | Authentication | User identity and access management | Clerk |
 | API Layer | Typed backend services and business logic | Next.js API Routes, Server Actions |
 | Data Layer | Relational data with type-safe queries | PostgreSQL, Prisma ORM 6.19 |
@@ -193,7 +193,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 |---|---|---|
 | Prisma | 6.19 | Type-safe ORM |
 | PostgreSQL | Latest | Primary relational database |
-| Supabase | 2.99 | Database hosting and file storage |
+| Supabase Storage | 2.99 | Media and document storage |
 | Upstash Redis | 1.37 | Serverless Redis for caching and rate limiting |
 | Pusher | 8.4 | Real-time WebSocket infrastructure |
 | Svix | 1.84 | Webhook management and delivery |
@@ -276,7 +276,7 @@ cp .env.example .env
 
 Update `.env` with required credentials:
 
-- Database (PostgreSQL / Supabase)
+- Database (PostgreSQL)
 - Authentication (Clerk)
 - Realtime (Pusher)
 - Caching (Upstash Redis)
