@@ -76,7 +76,7 @@ const ACTIONS: Action[] = [
   { 
     label: "Applications", 
     icon: FileText, 
-    href: "/landowner/applications",
+    href: "/applications",
     description: "Review requests"
   },
   { 

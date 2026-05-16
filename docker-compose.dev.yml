@@ -2,20 +2,13 @@ services:
   fieldly-app:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-        CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-        DATABASE_URL: ${DATABASE_URL}
+      dockerfile: Dockerfile.dev
 
     container_name: fieldly-app-dev
 
     restart: unless-stopped
 
-    command: pnpm dev --no-turbopack
+    command: sh -c "pnpm prisma db push && pnpm dev"
 
     ports:
       - "3000:3000"
@@ -26,13 +19,13 @@ services:
     environment:
       NODE_ENV: development
       WATCHPACK_POLLING: true
+      CHOKIDAR_USEPOLLING: true
 
       DATABASE_URL: postgresql://postgres:password@postgres:5432/fieldly
-
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - .:/app:cached
+      - .:/app
       - /app/node_modules
       - /app/.next
 
@@ -51,7 +44,7 @@ services:
 
     container_name: fieldly-postgres-dev
 
-    restart: always
+    restart: unless-stopped
 
     environment:
       POSTGRES_USER: postgres
@@ -79,6 +72,8 @@ services:
     container_name: fieldly-redis-dev
 
     restart: unless-stopped
+
+    command: redis-server --appendonly yes
 
     ports:
       - "6379:6379"

@@ -3,20 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-
       args:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
         CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-
         DATABASE_URL: ${DATABASE_URL}
 
-    container_name: fieldly-app
-
     restart: unless-stopped
+
+    init: true
 
     ports:
       - "3000:3000"
@@ -26,35 +23,48 @@ services:
 
     environment:
       NODE_ENV: production
-
       DATABASE_URL: postgresql://postgres:password@postgres:5432/fieldly
-
       REDIS_URL: redis://redis:6379
 
     depends_on:
       postgres:
         condition: service_healthy
-
       redis:
         condition: service_healthy
 
     networks:
       - fieldly-network
 
+    read_only: true
+
+    tmpfs:
+      - /tmp
+
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000').then(()=>process.exit(0)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+    security_opt:
+      - no-new-privileges:true
+
   postgres:
     image: postgres:16-alpine
-
-    container_name: fieldly-postgres
-
-    restart: always
+    restart: unless-stopped
 
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: fieldly
 
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -70,13 +80,12 @@ services:
 
   redis:
     image: redis:7-alpine
-
-    container_name: fieldly-redis
-
     restart: unless-stopped
 
-    ports:
-      - "6379:6379"
+    command: redis-server --appendonly yes
+
+    expose:
+      - "6379"
 
     volumes:
       - redis_data:/data

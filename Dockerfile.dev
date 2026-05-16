@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=development
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
+
+RUN pnpm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]
