@@ -2,19 +2,29 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Development Environment
 ENV NODE_ENV=development
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
+ENV NEXT_WEBPACK_USEPOLLING=1
 
+# Install pnpm
 RUN npm install -g pnpm
 
+# Copy dependency files
 COPY package.json pnpm-lock.yaml ./
+
+# Copy prisma schema before install
 COPY prisma ./prisma
 
+# Install dependencies
 RUN pnpm install
 
+# Copy source code
 COPY . .
 
+# Expose Next.js port
 EXPOSE 3000
 
+# Start development server
 CMD ["pnpm", "dev"]

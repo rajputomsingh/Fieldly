@@ -46,4 +46,4 @@ EXPOSE 3000
 # =========================
 # Start Dev Server
 # =========================
-CMD ["pnpm", "dev", "--no-turbopack"]
+CMD ["pnpm", "dev"]

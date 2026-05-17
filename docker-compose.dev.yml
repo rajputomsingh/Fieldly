@@ -8,8 +8,6 @@ services:
 
     restart: unless-stopped
 
-    command: sh -c "pnpm prisma db push && pnpm dev"
-
     ports:
       - "3000:3000"
 
@@ -20,12 +18,13 @@ services:
       NODE_ENV: development
       WATCHPACK_POLLING: true
       CHOKIDAR_USEPOLLING: true
+      NEXT_WEBPACK_USEPOLLING: 1
 
       DATABASE_URL: postgresql://postgres:password@postgres:5432/fieldly
       REDIS_URL: redis://redis:6379
 
     volumes:
-      - .:/app
+      - .:/app:delegated
       - /app/node_modules
       - /app/.next
 
