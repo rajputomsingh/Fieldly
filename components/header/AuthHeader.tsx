@@ -298,7 +298,11 @@ export default function AuthHeader() {
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8">
           {/* ========== MOBILE ========== */}
           <div className="flex md:hidden items-center justify-between rounded-full bg-white/90 px-4 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md">
-            <div className="flex items-center gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-2"
+              onClick={handleMobileMenuClose}
+            >
               <Image
                 src="/hicon.png"
                 alt="Fieldly"
@@ -307,8 +311,7 @@ export default function AuthHeader() {
                 priority
               />
               <span className="text-base font-semibold">Fieldly</span>
-            </div>
-
+            </Link>
             <div className="flex items-center gap-1 rounded-full bg-black/5 p-1">
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}

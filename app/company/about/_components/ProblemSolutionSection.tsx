@@ -82,6 +82,7 @@ export default function ProblemSolutionSection() {
                 src="/maintracblog.avif"
                 alt="Idle farmland"
                 fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
             </div>
@@ -137,6 +138,7 @@ export default function ProblemSolutionSection() {
                     src={card.img}
                     alt={card.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, 140px"
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
