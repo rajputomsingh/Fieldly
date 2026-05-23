@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -23,6 +29,7 @@ import {
   CheckCircle,
   XCircle,
   User,
+  Bell,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ROLE_BADGE_CONFIG } from "../_constants";
@@ -36,6 +43,7 @@ interface UserRowProps {
   onEdit: (user: AdminUser) => void;
   onBan: (user: AdminUser) => void;
   onDelete: (user: AdminUser) => void;
+  onNotify: (user: AdminUser) => void;
 }
 
 export function UserRow({
@@ -46,6 +54,7 @@ export function UserRow({
   onEdit,
   onBan,
   onDelete,
+  onNotify,
 }: UserRowProps) {
   const roleConfig = ROLE_BADGE_CONFIG[user.role || ""] || {
     label: "No Role",
@@ -121,39 +130,62 @@ export function UserRow({
         </div>
       </TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => onView(user.id)}>
-              <Eye className="h-4 w-4 mr-2" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(user)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit User
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-red-600"
-              onClick={() => onBan(user)}
-            >
-              <Ban className="h-4 w-4 mr-2" />
-              Ban User
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-red-600"
-              onClick={() => onDelete(user)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete User
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          {/* Quick Notify Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNotify(user);
+                  }}
+                >
+                  <Bell className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Send Notification</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Actions Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onView(user.id)}>
+                <Eye className="h-4 w-4 mr-2" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(user)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit User
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => onBan(user)}
+              >
+                <Ban className="h-4 w-4 mr-2" />
+                Ban User
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => onDelete(user)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   );

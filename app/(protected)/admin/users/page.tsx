@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Download, UserPlus, RefreshCw } from "lucide-react";
+import { Download, UserPlus, RefreshCw, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import type { AdminUser, PaginationState, UserStats, UserFilters as UserFiltersType } from "./_types";
@@ -16,11 +16,12 @@ import {
   BanUserDialog,
   BulkActionDialog,
 } from "./_components";
+import { QuickNotifyDialog } from "./_components/dialogs/QuickNotifyDialog";
+import { BroadcastDialog } from "./_components/dialogs/BroadcastDialog";
 
 export default function AdminUsersPage() {
   const router = useRouter();
   
-  // State
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -41,14 +42,18 @@ export default function AdminUsersPage() {
   });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
-  // Dialog states
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [bulkAction, setBulkAction] = useState("");
   const [banReason, setBanReason] = useState("");
 
-  // Data fetching
+  // Notification states
+  const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
+  const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
+  const [notifyUsers, setNotifyUsers] = useState<AdminUser[]>([]);
+  const [notifyMode, setNotifyMode] = useState<"single" | "bulk">("single");
+
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,7 +92,6 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // API Actions
   async function handleBulkAction() {
     if (!bulkAction || selectedUsers.length === 0) return;
 
@@ -139,7 +143,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     setSelectedUsers(checked ? users.map((u) => u.id) : []);
   };
@@ -150,16 +153,32 @@ export default function AdminUsersPage() {
     );
   };
 
-  // Navigation handlers
   const handleViewUser = (id: string) => router.push(`/admin/users/${id}`);
   const handleEditUser = (user: AdminUser) => router.push(`/admin/users/${user.id}/edit`);
   const handleDeleteUser = (user: AdminUser) => toast.info(`Delete functionality coming soon for ${user.name}`);
 
-  // Dialog handlers
   const handleOpenBanDialog = (user: AdminUser) => {
     setSelectedUser(user);
     setBanReason("");
     setShowBanDialog(true);
+  };
+
+  // Notification handlers
+  const handleNotifyUser = (user: AdminUser) => {
+    setNotifyUsers([user]);
+    setNotifyMode("single");
+    setNotifyDialogOpen(true);
+  };
+
+  const handleNotifySelected = () => {
+    const selected = users.filter((u) => selectedUsers.includes(u.id));
+    if (selected.length === 0) {
+      toast.error("No users selected");
+      return;
+    }
+    setNotifyUsers(selected);
+    setNotifyMode("bulk");
+    setNotifyDialogOpen(true);
   };
 
   return (
@@ -171,6 +190,15 @@ export default function AdminUsersPage() {
           <p className="text-muted-foreground mt-1">Manage platform users</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBroadcastDialogOpen(true)}
+            className="gap-2 rounded-xl"
+          >
+            <Bell className="h-4 w-4" />
+            Broadcast
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -186,10 +214,8 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       {stats && <UserStatsCards stats={stats} />}
 
-      {/* Filters */}
       <UserFilters
         filters={filters}
         selectedCount={selectedUsers.length}
@@ -198,7 +224,25 @@ export default function AdminUsersPage() {
         onBulkAction={() => setShowBulkDialog(true)}
       />
 
-      {/* Users Table */}
+      {/* Selected Users Action Bar */}
+      {selectedUsers.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-xl border border-primary/20">
+          <Users className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">
+            {selectedUsers.length} user{selectedUsers.length !== 1 ? "s" : ""} selected
+          </span>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={handleNotifySelected}
+            className="gap-1 rounded-lg ml-auto"
+          >
+            <Bell className="h-3.5 w-3.5" />
+            Notify Selected
+          </Button>
+        </div>
+      )}
+
       <UsersTable
         users={users}
         selectedUsers={selectedUsers}
@@ -209,15 +253,14 @@ export default function AdminUsersPage() {
         onEdit={handleEditUser}
         onBan={handleOpenBanDialog}
         onDelete={handleDeleteUser}
+        onNotify={handleNotifyUser}
       />
 
-      {/* Pagination */}
       <UserPagination
         pagination={pagination}
         onPageChange={(page) => setPagination({ ...pagination, page })}
       />
 
-      {/* Dialogs */}
       <BulkActionDialog
         open={showBulkDialog}
         onOpenChange={setShowBulkDialog}
@@ -234,6 +277,18 @@ export default function AdminUsersPage() {
         banReason={banReason}
         onBanReasonChange={setBanReason}
         onConfirm={handleBanUser}
+      />
+
+      <QuickNotifyDialog
+        open={notifyDialogOpen}
+        onOpenChange={setNotifyDialogOpen}
+        users={notifyUsers}
+        mode={notifyMode}
+      />
+
+      <BroadcastDialog
+        open={broadcastDialogOpen}
+        onOpenChange={setBroadcastDialogOpen}
       />
     </div>
   );
