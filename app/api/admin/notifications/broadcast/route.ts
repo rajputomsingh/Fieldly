@@ -14,121 +14,171 @@ const broadcastSchema = z.object({
   targetRole: z.enum(['FARMER', 'LANDOWNER']).optional(),
   targetIds: z.array(z.string()).optional(),
   actionUrl: z.string().optional().nullable(),
+  scheduledAt: z.string().datetime().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+async function getAdminUser() {
+  const { userId } = await auth();
+  if (!userId) return null;
+  const admin = await prisma.user.findUnique({
+    where: { clerkUserId: userId },
+    select: { id: true, role: true },
+  });
+  if (!admin?.role || !['ADMIN', 'SUPER_ADMIN'].includes(admin.role)) return null;
+  return admin;
+}
 
-    // Verify admin
-    const admin = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { id: true, role: true },
+async function getTargetUsers(
+  targetType: string,
+  targetRole?: string,
+  targetIds?: string[]
+): Promise<{ id: string }[]> {
+  if (targetType === 'all') {
+    return prisma.user.findMany({ where: { isOnboarded: true }, select: { id: true } });
+  }
+  if (targetType === 'role' && targetRole) {
+    return prisma.user.findMany({
+      where: { role: targetRole as 'FARMER' | 'LANDOWNER', isOnboarded: true },
+      select: { id: true },
     });
+  }
+  if (targetType === 'specific' && targetIds?.length) {
+    return prisma.user.findMany({ where: { id: { in: targetIds } }, select: { id: true } });
+  }
+  return [];
+}
 
-    if (!admin?.role || !['ADMIN', 'SUPER_ADMIN'].includes(admin.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const validated = broadcastSchema.parse(body);
-
-    // Determine target users
-    let targetUsers: { id: string }[] = [];
-
-    if (validated.targetType === 'all') {
-      targetUsers = await prisma.user.findMany({
-        where: { isOnboarded: true },
-        select: { id: true },
-      });
-    } else if (validated.targetType === 'role' && validated.targetRole) {
-      targetUsers = await prisma.user.findMany({
-        where: {
-          role: validated.targetRole,
-          isOnboarded: true,
-        },
-        select: { id: true },
-      });
-    } else if (validated.targetType === 'specific' && validated.targetIds?.length) {
-      targetUsers = await prisma.user.findMany({
-        where: { id: { in: validated.targetIds } },
-        select: { id: true },
-      });
-    }
-
-    if (targetUsers.length === 0) {
-      return NextResponse.json({ error: 'No target users found' }, { status: 400 });
-    }
-
-    // Create notifications in bulk
-    const notificationData = targetUsers.map(user => ({
+async function sendNotifications(
+  targetUsers: { id: string }[],
+  title: string,
+  message: string,
+  actionUrl?: string | null
+) {
+  if (targetUsers.length === 0) return;
+  await prisma.notification.createMany({
+    data: targetUsers.map(user => ({
       userId: user.id,
       type: 'SYSTEM' as NotificationType,
-      title: validated.title,
-      message: validated.message,
-      actionUrl: validated.actionUrl || null,
+      title,
+      message,
+      actionUrl: actionUrl || null,
       isRead: false,
-    }));
+    })),
+  });
+  const created = await prisma.notification.findMany({
+    where: {
+      userId: { in: targetUsers.map(u => u.id) },
+      title,
+      createdAt: { gte: new Date(Date.now() - 60000) },
+    },
+    take: targetUsers.length,
+  });
+  for (const notification of created) {
+    await pusherServer.trigger(`private-user-${notification.userId}`, 'new-notification', notification).catch(() => {});
+  }
+}
 
-    await prisma.notification.createMany({ data: notificationData });
+// GET - Fetch history
+export async function GET(req: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type');
+    const [sentActions, scheduled] = await Promise.all([
+      type !== 'scheduled'
+        ? prisma.adminAction.findMany({ where: { action: 'BROADCAST_NOTIFICATION', adminId: admin.id }, orderBy: { createdAt: 'desc' }, take: 50 })
+        : Promise.resolve([]),
+      type !== 'sent'
+        ? prisma.scheduledNotification.findMany({ where: { adminId: admin.id }, orderBy: { scheduledAt: 'asc' } })
+        : Promise.resolve([]),
+    ]);
+    return NextResponse.json({ sent: sentActions, scheduled });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
-    // Fetch created notifications for Pusher events
-    const createdNotifications = await prisma.notification.findMany({
-      where: {
-        userId: { in: targetUsers.map(u => u.id) },
-        title: validated.title,
-        createdAt: { gte: new Date(Date.now() - 60000) },
-      },
-      take: targetUsers.length,
-    });
-
-    // Trigger Pusher events in batches
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < createdNotifications.length; i += BATCH_SIZE) {
-      const batch = createdNotifications.slice(i, i + BATCH_SIZE);
-      await Promise.allSettled(
-        batch.map(notification =>
-          pusherServer.trigger(
-            `private-user-${notification.userId}`,
-            'new-notification',
-            notification
-          )
-        )
-      );
+// POST - Send now or schedule
+export async function POST(req: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await req.json();
+    const validated = broadcastSchema.parse(body);
+    if (validated.scheduledAt) {
+      const scheduled = await prisma.scheduledNotification.create({
+        data: {
+          title: validated.title, message: validated.message, priority: validated.priority,
+          targetType: validated.targetType, targetRole: validated.targetRole,
+          targetIds: validated.targetIds || [], actionUrl: validated.actionUrl,
+          scheduledAt: new Date(validated.scheduledAt), adminId: admin.id,
+        },
+      });
+      return NextResponse.json({ success: true, scheduled, message: 'Notification scheduled' });
     }
-
-    // Audit log
+    const targetUsers = await getTargetUsers(validated.targetType, validated.targetRole, validated.targetIds);
+    if (targetUsers.length === 0) return NextResponse.json({ error: 'No target users found' }, { status: 400 });
+    await sendNotifications(targetUsers, validated.title, validated.message, validated.actionUrl);
     await prisma.adminAction.create({
       data: {
-        adminId: admin.id,
-        action: 'BROADCAST_NOTIFICATION',
-        entity: 'NOTIFICATION',
-        metadata: {
-          title: validated.title,
-          targetType: validated.targetType,
-          targetRole: validated.targetRole,
-          targetCount: targetUsers.length,
-          priority: validated.priority,
-        },
-        ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
+        adminId: admin.id, action: 'BROADCAST_NOTIFICATION', entity: 'NOTIFICATION',
+        metadata: { title: validated.title, targetType: validated.targetType, targetRole: validated.targetRole, targetCount: targetUsers.length, priority: validated.priority },
+        ipAddress: req.headers.get('x-forwarded-for') || 'system', userAgent: req.headers.get('user-agent') || 'unknown',
       },
     });
+    return NextResponse.json({ success: true, sent: targetUsers.length, message: `Notification sent to ${targetUsers.length} users` });
+  } catch (err) {
+    if (err instanceof z.ZodError) return NextResponse.json({ error: err.issues }, { status: 400 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 
-    return NextResponse.json({
-      success: true,
-      sent: targetUsers.length,
-      message: `Notification broadcasted to ${targetUsers.length} users`,
+// PATCH - Process scheduled
+export async function PATCH() {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const now = new Date();
+    const dueNotifications = await prisma.scheduledNotification.findMany({
+      where: { status: 'PENDING', scheduledAt: { lte: now } },
     });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 });
+    let sent = 0, failed = 0;
+    for (const scheduled of dueNotifications) {
+      try {
+        const targetUsers = await getTargetUsers(scheduled.targetType, scheduled.targetRole || undefined, scheduled.targetIds);
+        await sendNotifications(targetUsers, scheduled.title, scheduled.message, scheduled.actionUrl);
+        await prisma.scheduledNotification.update({ where: { id: scheduled.id }, data: { status: 'SENT', sentAt: new Date() } });
+        await prisma.adminAction.create({
+          data: {
+            adminId: admin.id, action: 'BROADCAST_NOTIFICATION', entity: 'NOTIFICATION',
+            metadata: { title: scheduled.title, targetType: scheduled.targetType, targetRole: scheduled.targetRole, targetCount: targetUsers.length, priority: scheduled.priority, scheduled: true },
+            ipAddress: 'system', userAgent: 'auto-process',
+          },
+        });
+        sent++;
+      } catch {
+        await prisma.scheduledNotification.update({ where: { id: scheduled.id }, data: { status: 'FAILED' } });
+        failed++;
+      }
     }
-    console.error('Broadcast error:', error);
+    return NextResponse.json({ success: true, sent, failed, total: dueNotifications.length });
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE - Cancel scheduled
+export async function DELETE(req: NextRequest) {
+  try {
+    const admin = await getAdminUser();
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    await prisma.scheduledNotification.update({ where: { id }, data: { status: 'CANCELLED' } });
+    return NextResponse.json({ success: true });
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
