@@ -4,8 +4,8 @@
 import React, { useState } from 'react';
 import { BroadcastForm } from './BroadcastForm';
 import { BroadcastHistory } from './BroadcastHistory';
+import { NotificationStatsCards } from './NotificationStatsCards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Send, History } from 'lucide-react';
 
 interface BroadcastRecord {
@@ -47,32 +47,8 @@ export function AdminNotificationsClient({
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userCounts.totalCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Farmers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userCounts.farmerCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Landowners</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userCounts.landownerCount}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats Cards */}
+      <NotificationStatsCards userCounts={userCounts} />
 
       <Tabs defaultValue="broadcast" className="w-full">
         <TabsList>

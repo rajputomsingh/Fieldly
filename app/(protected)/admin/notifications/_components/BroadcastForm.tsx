@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Send, AlertTriangle } from 'lucide-react';
+import { Send, AlertTriangle, Link } from 'lucide-react';
 
 interface BroadcastFormProps {
   isSending: boolean;
@@ -24,6 +24,7 @@ export function BroadcastForm({ isSending, setIsSending }: BroadcastFormProps) {
   const [priority, setPriority] = useState('MEDIUM');
   const [targetType, setTargetType] = useState('all');
   const [targetRole, setTargetRole] = useState('FARMER');
+  const [actionUrl, setActionUrl] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,6 +47,7 @@ export function BroadcastForm({ isSending, setIsSending }: BroadcastFormProps) {
           priority,
           targetType,
           targetRole: targetType === 'role' ? targetRole : undefined,
+          actionUrl: actionUrl.trim() || null,
         }),
       });
 
@@ -55,6 +57,7 @@ export function BroadcastForm({ isSending, setIsSending }: BroadcastFormProps) {
         toast.success(`Notification sent to ${data.sent} users`);
         setTitle('');
         setMessage('');
+        setActionUrl('');
         setShowConfirm(false);
       } else {
         toast.error(data.error || 'Failed to send notification');
@@ -109,6 +112,22 @@ export function BroadcastForm({ isSending, setIsSending }: BroadcastFormProps) {
               maxLength={500}
             />
             <p className="text-xs text-muted-foreground">{message.length}/500</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="actionUrl" className="flex items-center gap-1">
+              <Link className="h-3.5 w-3.5" />
+              Action URL (Optional)
+            </Label>
+            <Input
+              id="actionUrl"
+              value={actionUrl}
+              onChange={e => setActionUrl(e.target.value)}
+              placeholder="/dashboard or /marketplace/listings/abc123"
+            />
+            <p className="text-xs text-muted-foreground">
+              Users will be redirected here when clicking the notification
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

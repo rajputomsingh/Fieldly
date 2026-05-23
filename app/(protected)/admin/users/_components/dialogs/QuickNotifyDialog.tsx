@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Send, User } from "lucide-react";
+import { Send, User, Link } from "lucide-react";
 import type { AdminUser } from "../../_types";
 
 interface QuickNotifyDialogProps {
@@ -42,6 +42,7 @@ export function QuickNotifyDialog({
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState<string>("MEDIUM");
+  const [actionUrl, setActionUrl] = useState("");
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
@@ -62,6 +63,7 @@ export function QuickNotifyDialog({
           priority,
           targetType: "specific",
           targetIds: users.map((u) => u.id),
+          actionUrl: actionUrl.trim() || null,
         }),
       });
 
@@ -74,6 +76,7 @@ export function QuickNotifyDialog({
         setTitle("");
         setMessage("");
         setPriority("MEDIUM");
+        setActionUrl("");
         onOpenChange(false);
       } else {
         toast.error(data.error || "Failed to send notification");
@@ -90,6 +93,7 @@ export function QuickNotifyDialog({
       setTitle("");
       setMessage("");
       setPriority("MEDIUM");
+      setActionUrl("");
       onOpenChange(false);
     }
   };
@@ -110,6 +114,7 @@ export function QuickNotifyDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Selected Users */}
           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-2 bg-muted/50 rounded-lg">
             {users.map((user) => (
               <Badge key={user.id} variant="secondary" className="gap-1 text-xs">
@@ -119,6 +124,7 @@ export function QuickNotifyDialog({
             ))}
           </div>
 
+          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="notify-title">Title</Label>
             <Input
@@ -131,6 +137,7 @@ export function QuickNotifyDialog({
             />
           </div>
 
+          {/* Message */}
           <div className="space-y-2">
             <Label htmlFor="notify-message">Message</Label>
             <Textarea
@@ -138,7 +145,7 @@ export function QuickNotifyDialog({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Write your notification message..."
-              rows={4}
+              rows={3}
               maxLength={500}
               className="rounded-xl"
             />
@@ -147,6 +154,25 @@ export function QuickNotifyDialog({
             </p>
           </div>
 
+          {/* Action URL - NEW */}
+          <div className="space-y-2">
+            <Label htmlFor="notify-action-url" className="flex items-center gap-1">
+              <Link className="h-3.5 w-3.5" />
+              Action URL (Optional)
+            </Label>
+            <Input
+              id="notify-action-url"
+              value={actionUrl}
+              onChange={(e) => setActionUrl(e.target.value)}
+              placeholder="/dashboard or /marketplace/listings/abc123"
+              className="rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground">
+              User will be redirected here when clicking the notification
+            </p>
+          </div>
+
+          {/* Priority */}
           <div className="space-y-2">
             <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>

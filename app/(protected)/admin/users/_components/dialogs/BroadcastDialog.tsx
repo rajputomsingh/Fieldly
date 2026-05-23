@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Send, AlertTriangle } from "lucide-react";
+import { Send, AlertTriangle, Link } from "lucide-react";
 
 interface BroadcastDialogProps {
   open: boolean;
@@ -37,6 +37,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
   const [priority, setPriority] = useState<string>("MEDIUM");
   const [targetType, setTargetType] = useState<string>("all");
   const [targetRole, setTargetRole] = useState<string>("FARMER");
+  const [actionUrl, setActionUrl] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -67,6 +68,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
         message: message.trim(),
         priority,
         targetType,
+        actionUrl: actionUrl.trim() || null,
       };
 
       if (targetType === "role") {
@@ -87,6 +89,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
         setMessage("");
         setPriority("MEDIUM");
         setTargetType("all");
+        setActionUrl("");
         setShowConfirm(false);
         onOpenChange(false);
       } else {
@@ -104,6 +107,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
       setTitle("");
       setMessage("");
       setShowConfirm(false);
+      setActionUrl("");
       onOpenChange(false);
     }
   };
@@ -122,6 +126,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="broadcast-title">Title</Label>
             <Input
@@ -134,6 +139,7 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
             />
           </div>
 
+          {/* Message */}
           <div className="space-y-2">
             <Label htmlFor="broadcast-message">Message</Label>
             <Textarea
@@ -150,6 +156,25 @@ export function BroadcastDialog({ open, onOpenChange }: BroadcastDialogProps) {
             </p>
           </div>
 
+          {/* Action URL - NEW */}
+          <div className="space-y-2">
+            <Label htmlFor="broadcast-action-url" className="flex items-center gap-1">
+              <Link className="h-3.5 w-3.5" />
+              Action URL (Optional)
+            </Label>
+            <Input
+              id="broadcast-action-url"
+              value={actionUrl}
+              onChange={(e) => setActionUrl(e.target.value)}
+              placeholder="/dashboard or /marketplace/listings/abc123"
+              className="rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground">
+              Users will be redirected here when clicking the notification
+            </p>
+          </div>
+
+          {/* Priority & Target */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>

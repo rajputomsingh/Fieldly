@@ -16,7 +16,7 @@ import {
   History,
   Menu,
   X,
-  Bell,  // ✅ Added
+  Bell,  
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -31,7 +31,7 @@ const navigation = [
   { name: "Listings", href: "/admin/listings", icon: Home },
   { name: "Applications", href: "/admin/applications", icon: FileText },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
-  { name: "Notifications", href: "/admin/notifications", icon: Bell },  // ✅ Added
+  { name: "Notifications", href: "/admin/notifications", icon: Bell },  
   { name: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { name: "Analytics", href: "/admin/analytics", icon: BarChart },
   { name: "Audit Logs", href: "/admin/audit-logs", icon: History },

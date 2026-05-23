@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logDetailedAction } from "@/lib/server/audit-logger";
 import { headers } from "next/headers";
 import { AuctionStatus, NotificationType } from "@prisma/client";
-import { notifyAuctionStatusChange } from "@/services/notifications/notificationTrigger.service"; // ✅ 
+import { notifyAuctionStatusChange } from "@/services/notifications/notificationTrigger.service"; 
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
