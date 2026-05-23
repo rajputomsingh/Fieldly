@@ -49,15 +49,16 @@ model User {
   subscription        Subscription?
 
   // Admin Relations
-  adminSessions      AdminSession[]
-  adminActions       AdminAction[]
-  generatedReports   Report[]
-  platformSettings   PlatformSetting[]
-  disputeResolutions DisputeResolution[]
-  adminConfigUpdates AdminConfig[]       @relation("AdminConfigUpdatedBy")
-  filedDisputes      Dispute[]           @relation("DisputeFiledBy")
-  assignedDisputes   Dispute[]           @relation("AssignedDisputes")
-  securityEvents     SecurityEvent[]
+  adminSessions          AdminSession[]
+  adminActions           AdminAction[]
+  generatedReports       Report[]
+  platformSettings       PlatformSetting[]
+  disputeResolutions     DisputeResolution[]
+  adminConfigUpdates     AdminConfig[]           @relation("AdminConfigUpdatedBy")
+  filedDisputes          Dispute[]               @relation("DisputeFiledBy")
+  assignedDisputes       Dispute[]               @relation("AssignedDisputes")
+  securityEvents         SecurityEvent[]
+  scheduledNotifications ScheduledNotification[] 
 
   @@index([clerkUserId])
   @@index([email])
@@ -614,6 +615,27 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([entityType, entityId])
+}
+
+model ScheduledNotification {
+  id          String    @id @default(cuid())
+  title       String
+  message     String
+  priority    String    @default("MEDIUM")
+  targetType  String
+  targetRole  String?
+  targetIds   String[]  @default([])
+  actionUrl   String?
+  scheduledAt DateTime
+  sentAt      DateTime?
+  status      String    @default("PENDING") // PENDING, SENT, FAILED, CANCELLED
+  adminId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@index([adminId])
 }
 
 // ============================================
