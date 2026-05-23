@@ -25,6 +25,7 @@ interface UsersTableProps {
   onEdit: (user: AdminUser) => void;
   onBan: (user: AdminUser) => void;
   onDelete: (user: AdminUser) => void;
+  onNotify: (user: AdminUser) => void;
 }
 
 export function UsersTable({
@@ -37,6 +38,7 @@ export function UsersTable({
   onEdit,
   onBan,
   onDelete,
+  onNotify,
 }: UsersTableProps) {
   return (
     <Card className="rounded-3xl border border-white/40 dark:border-white/10
@@ -92,6 +94,7 @@ export function UsersTable({
                   onEdit={onEdit}
                   onBan={onBan}
                   onDelete={onDelete}
+                  onNotify={onNotify}
                 />
               ))
             )}
