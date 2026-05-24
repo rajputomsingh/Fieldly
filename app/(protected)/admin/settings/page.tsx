@@ -118,7 +118,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 mt-22">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold">Settings</h1>

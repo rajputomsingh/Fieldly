@@ -149,7 +149,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <div className="space-y-6 mt-22">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold">Audit Logs</h1>

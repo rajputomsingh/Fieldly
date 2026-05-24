@@ -122,11 +122,11 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 mt-22">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold mt-12">Dashboard</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Platform overview and analytics</p>
         </div>
         <div className="flex items-center gap-3">
@@ -230,7 +230,7 @@ export default function AdminDashboardPage() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {(analytics?.userDistribution || []).map((entry, index: number) => (
+                    {(analytics?.userDistribution || []).map((_entry, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

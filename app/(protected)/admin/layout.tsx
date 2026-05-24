@@ -6,7 +6,8 @@ export const revalidate = 0;
 import { requireAdmin } from "@/lib/server/admin-guard";
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "./_components/AdminSidebar";
-// Remove this import: import { AdminGuard } from "./_components/AdminGuard";
+import { AdminDockProvider } from "./_components/AdminDockContext";
+import { AdminMainContent } from "./_components/AdminMainContent";
 
 export default async function AdminLayout({
   children,
@@ -25,17 +26,16 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  // No AdminGuard wrapper - server-side protection is enough
   return (
-    <div className="min-h-screen">
-      <div className="flex">
+    <AdminDockProvider>
+      <div className="min-h-screen">
         <AdminSidebar adminRole={admin.role} />
-        <main className="flex-1 lg:pl-64">
+        <AdminMainContent>
           <div className="p-4 lg:p-8 pt-20">
             {children}
           </div>
-        </main>
+        </AdminMainContent>
       </div>
-    </div>
+    </AdminDockProvider>
   );
 }
