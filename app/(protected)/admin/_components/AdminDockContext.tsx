@@ -9,37 +9,44 @@ interface AdminDockContextType {
   onDockExpand: () => void;
   onDockCollapse: () => void;
   isMobile: boolean;
+  headerHeight: number;
 }
 
 const AdminDockContext = createContext<AdminDockContextType | undefined>(undefined);
 
 export function AdminDockProvider({ children }: { children: ReactNode }) {
   const [isDockExpanded, setIsDockExpanded] = useState(false);
-  // Fix: Provide initial value for useState
   const [isMobile, setIsMobile] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(80);
 
-  // Update mobile state on mount and resize
   useEffect(() => {
-    const updateMobileState = () => {
-      setIsMobile(window.innerWidth < 1024);
+    const updateState = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      
+      const header = document.querySelector('header');
+      if (header) {
+        const height = header.getBoundingClientRect().height;
+        setHeaderHeight(height);
+      }
     };
+
+    updateState();
+    window.addEventListener('resize', updateState);
+    window.addEventListener('scroll', updateState, { passive: true });
     
-    // Set initial value
-    updateMobileState();
-    
-    window.addEventListener('resize', updateMobileState);
-    return () => window.removeEventListener('resize', updateMobileState);
+    return () => {
+      window.removeEventListener('resize', updateState);
+      window.removeEventListener('scroll', updateState);
+    };
   }, []);
 
-  const dockWidth = isMobile ? 0 : (isDockExpanded ? 248 : 84);
+  const dockWidth = isMobile 
+    ? (isDockExpanded ? 220 : 60)
+    : (isDockExpanded ? 248 : 72);
 
-  const onDockExpand = useCallback(() => {
-    if (!isMobile) setIsDockExpanded(true);
-  }, [isMobile]);
-
-  const onDockCollapse = useCallback(() => {
-    if (!isMobile) setIsDockExpanded(false);
-  }, [isMobile]);
+  const onDockExpand = useCallback(() => setIsDockExpanded(true), []);
+  const onDockCollapse = useCallback(() => setIsDockExpanded(false), []);
 
   return (
     <AdminDockContext.Provider value={{ 
@@ -47,7 +54,8 @@ export function AdminDockProvider({ children }: { children: ReactNode }) {
       dockWidth, 
       onDockExpand, 
       onDockCollapse,
-      isMobile 
+      isMobile,
+      headerHeight
     }}>
       {children}
     </AdminDockContext.Provider>

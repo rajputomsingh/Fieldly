@@ -151,7 +151,7 @@ export default function AlertsPanel() {
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm">
                     Investigate
-                  </Button>
+                  </Button> 
                   <Button variant="ghost" size="sm">
                     Dismiss
                   </Button>
