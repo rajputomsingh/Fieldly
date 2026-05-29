@@ -8,8 +8,8 @@ This guide outlines how both new and experienced contributors can get involved: 
 
 [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen)](CONTRIBUTING.md)
 [![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-ff69b4)](CODE_OF_CONDUCT.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-181717?logo=github)](https://github.com/Om-singh-ui/Fieldly/pulls)
-[![First Timers Friendly](https://img.shields.io/badge/First_Timers-Friendly-blue)](https://github.com/Om-singh-ui/Fieldly/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+[![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-181717?logo=github)](https://github.com/rajputomsingh/Fieldly/pulls)
+[![First Timers Friendly](https://img.shields.io/badge/First_Timers-Friendly-blue)](https://github.com/rajputomsingh/Fieldly/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 
 
 ## Table of Contents
@@ -44,9 +44,9 @@ This project follows the **Contributor Covenant (v2.1)** — we expect all commu
 
 ### Report a Bug
 
-[![Bug Reports](https://img.shields.io/badge/Bug-Report-red)](https://github.com/Om-singh-ui/Fieldly/issues/new?template=bug_report.md)
+[![Bug Reports](https://img.shields.io/badge/Bug-Report-red)](https://github.com/rajputomsingh/Fieldly/issues/new?template=bug_report.md)
 
-1. Check the [existing issues](https://github.com/Om-singh-ui/Fieldly/issues) to avoid duplicates
+1. Check the [existing issues](https://github.com/rajputomsingh/Fieldly/issues) to avoid duplicates
 2. Use the bug report template when creating a new issue
 3. Include:
    - Clear description of the bug
@@ -57,7 +57,7 @@ This project follows the **Contributor Covenant (v2.1)** — we expect all commu
 
 ### Request a Feature
 
-[![Feature Requests](https://img.shields.io/badge/Feature-Request-blue)](https://github.com/Om-singh-ui/Fieldly/issues/new?template=feature_request.md)
+[![Feature Requests](https://img.shields.io/badge/Feature-Request-blue)](https://github.com/rajputomsingh/Fieldly/issues/new?template=feature_request.md)
 
 1. Check existing feature requests to avoid duplicates
 2. Use the feature request template
@@ -69,7 +69,7 @@ This project follows the **Contributor Covenant (v2.1)** — we expect all commu
 
 ### Improve Documentation
 
-[![Documentation](https://img.shields.io/badge/Docs-Improvement-success)](https://github.com/Om-singh-ui/Fieldly/tree/main/docs)
+[![Documentation](https://img.shields.io/badge/Docs-Improvement-success)](https://github.com/rajputomsingh/Fieldly/tree/main/docs)
 
 - Fix typos, improve clarity, or add examples
 - Translate documentation
@@ -78,7 +78,7 @@ This project follows the **Contributor Covenant (v2.1)** — we expect all commu
 
 ### Submit Code (PRs)
 
-[![Pull Requests](https://img.shields.io/badge/Pull_Requests-Review-6f42c1)](https://github.com/Om-singh-ui/Fieldly/pulls)
+[![Pull Requests](https://img.shields.io/badge/Pull_Requests-Review-6f42c1)](https://github.com/rajputomsingh/Fieldly/pulls)
 
 1. Fork the repository
 2. Create a feature branch
@@ -89,7 +89,7 @@ This project follows the **Contributor Covenant (v2.1)** — we expect all commu
 
 ### Domain Expertise
 
-[![Domain Experts](https://img.shields.io/badge/Domain-Expertise-orange)](https://github.com/Om-singh-ui/Fieldly/discussions)
+[![Domain Experts](https://img.shields.io/badge/Domain-Expertise-orange)](https://github.com/rajputomsingh/Fieldly/discussions)
 
 We welcome contributions from:
 - Agricultural scientists and agronomists
@@ -102,7 +102,7 @@ Contribute through discussions, whitepapers, or domain-specific documentation.
 
 ## Getting Started (Local Development)
 
-[![Setup](https://img.shields.io/badge/Setup-Local_Development-0a0a0a)](https://github.com/Om-singh-ui/Fieldly#installation)
+[![Setup](https://img.shields.io/badge/Setup-Local_Development-0a0a0a)](https://github.com/rajputomsingh/Fieldly#installation)
 
 ### Prerequisites
 

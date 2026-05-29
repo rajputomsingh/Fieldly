@@ -11,9 +11,9 @@
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI/CD-2088FF?logo=github-actions)](https://github.com/features/actions)
 [![Trivy](https://img.shields.io/badge/Security-Trivy-1904DA)](https://trivy.dev/)
-[![Architecture](https://img.shields.io/badge/Architecture-Event_Driven-black)](https://github.com/Om-singh-ui/Fieldly)
-[![Deployment](https://img.shields.io/badge/Deployment-Standalone_Runtime-success)](https://github.com/Om-singh-ui/Fieldly)
-[![Scalability](https://img.shields.io/badge/Scalable-Production_Ready-success)](https://github.com/Om-singh-ui/Fieldly)
+[![Architecture](https://img.shields.io/badge/Architecture-Event_Driven-black)](https://github.com/rajputomsingh/Fieldly)
+[![Deployment](https://img.shields.io/badge/Deployment-Standalone_Runtime-success)](https://github.com/rajputomsingh/Fieldly)
+[![Scalability](https://img.shields.io/badge/Scalable-Production_Ready-success)](https://github.com/rajputomsingh/Fieldly)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs](https://img.shields.io/badge/PRs-Welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -36,7 +36,7 @@
 
 Fieldly addresses structural inefficiencies in farmland leasing and agricultural decision-making. The platform combines verified identity systems, digital leasing infrastructure, intelligent matching, and a real-time agricultural insights engine into a unified ecosystem. It is designed to scale as an infrastructure layer for agricultural operations and rural financial services.
 
-[![Realtime](https://img.shields.io/badge/Realtime-Enabled-purple)](https://github.com/Om-singh-ui/Fieldly)
+[![Realtime](https://img.shields.io/badge/Realtime-Enabled-purple)](https://github.com/rajputomsingh/Fieldly)
 [![Auth](https://img.shields.io/badge/Auth-Clerk-blueviolet)](https://clerk.com/)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL-blue)](https://www.postgresql.org/)
 [![Caching](https://img.shields.io/badge/Caching-Redis-red)](https://redis.io/)
@@ -72,9 +72,9 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 
 ### Modular Insights Engine
 
-[![Insights Engine](https://img.shields.io/badge/Insights-Enabled-orange)](https://github.com/Om-singh-ui/Fieldly)
-[![Data Pipeline](https://img.shields.io/badge/Data-Pipeline-yellow)](https://github.com/Om-singh-ui/Fieldly)
-[![Decision Engine](https://img.shields.io/badge/Decision-System-critical)](https://github.com/Om-singh-ui/Fieldly)
+[![Insights Engine](https://img.shields.io/badge/Insights-Enabled-orange)](https://github.com/rajputomsingh/Fieldly)
+[![Data Pipeline](https://img.shields.io/badge/Data-Pipeline-yellow)](https://github.com/rajputomsingh/Fieldly)
+[![Decision Engine](https://img.shields.io/badge/Decision-System-critical)](https://github.com/rajputomsingh/Fieldly)
 
 - Real-time agricultural intelligence from multi-source data
 - Actionable recommendations for irrigation, planting, and harvesting
@@ -254,7 +254,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 ### Clone Repository
 
 ```bash
-git clone https://github.com/Om-singh-ui/Fieldly.git
+git clone https://github.com/rajputomsingh/Fieldly.git
 cd Fieldly
 ```
 

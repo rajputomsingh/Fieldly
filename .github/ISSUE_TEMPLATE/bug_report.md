@@ -3,7 +3,7 @@ name: Bug report
 about: Report a reproducible bug or issue in Fieldly
 title: "[BUG]:"
 labels: bug
-assignees: Om-singh-ui
+assignees: rajputomsingh
 
 ---
 
