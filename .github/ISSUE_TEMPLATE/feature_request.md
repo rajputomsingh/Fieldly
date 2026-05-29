@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest a new feature, enhancement, or improvement for Fieldly
 title: "[FEATURE]:"
 labels: enhancement
-assignees: Om-singh-ui
+assignees: rajputomsingh
 
 ---
 

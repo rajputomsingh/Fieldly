@@ -1,9 +1,9 @@
 # Security Policy
 
 [![Security](https://img.shields.io/badge/Security-Active-brightgreen)](./SECURITY.md)
-[![Supported](https://img.shields.io/badge/Version-Latest-blue)](https://github.com/Om-singh-ui/Fieldly)
-[![Dependabot](https://img.shields.io/badge/Dependabot-Enabled-0366d6?logo=dependabot)](https://github.com/Om-singh-ui/Fieldly/security/dependabot)
-[![CodeQL](https://img.shields.io/badge/CodeQL-Scanning-1f6feb?logo=github)](https://github.com/Om-singh-ui/Fieldly/security/code-scanning)
+[![Supported](https://img.shields.io/badge/Version-Latest-blue)](https://github.com/rajputomsingh/Fieldly)
+[![Dependabot](https://img.shields.io/badge/Dependabot-Enabled-0366d6?logo=dependabot)](https://github.com/rajputomsingh/Fieldly/security/dependabot)
+[![CodeQL](https://img.shields.io/badge/CodeQL-Scanning-1f6feb?logo=github)](https://github.com/rajputomsingh/Fieldly/security/code-scanning)
 [![Responsible Disclosure](https://img.shields.io/badge/Disclosure-Coordinated-purple)](./SECURITY.md)
 
 Fieldly takes security seriously. If you discover a security vulnerability, please report it responsibly and privately.
@@ -25,7 +25,7 @@ Only the latest version receives security updates. We recommend staying up to da
 Please report vulnerabilities using one of the following channels:
 
 - **GitHub Security Advisories**:  
-  https://github.com/Om-singh-ui/Fieldly/security/advisories/new
+  https://github.com/rajputomsingh/Fieldly/security/advisories/new
 
 - **Security Email**: omchouhan227@gmail.com
 
@@ -136,8 +136,8 @@ Responsible disclosures may be acknowledged in:
     ## Contact
 
     - Security Email: omchouhan227@gmail.com
-    - Maintainer: [@Om-singh-ui](https://github.com/Om-singh-ui)
-    - GitHub Security Advisories: https://github.com/Om-singh-ui/Fieldly/security/advisories/new
+    - Maintainer: [@rajputomsingh](https://github.com/rajputomsingh)
+    - GitHub Security Advisories: https://github.com/rajputomsingh/Fieldly/security/advisories/new
 
 
 *Last updated: May 2026*
