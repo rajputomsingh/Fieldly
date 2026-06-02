@@ -47,14 +47,17 @@ export default function AdminApplicationsPage() {
     sortBy: "createdAt",
     sortOrder: "desc",
   });
-  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
+  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(
+    new Set(),
+  );
 
   const [dialogState, setDialogState] = useState<{
     type: "bulkReview" | "delete" | null;
     open: boolean;
   }>({ type: null, open: false });
 
-  const [selectedApplication, setSelectedApplication] = useState<AdminApplication | null>(null);
+  const [selectedApplication, setSelectedApplication] =
+    useState<AdminApplication | null>(null);
   const [reviewAction, setReviewAction] = useState<ReviewAction>("APPROVE");
   const [reviewNotes, setReviewNotes] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -75,7 +78,8 @@ export default function AdminApplicationsPage() {
       const res = await fetch(`/api/admin/applications?${params}`);
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Failed to fetch applications");
+      if (!res.ok)
+        throw new Error(data.error || "Failed to fetch applications");
 
       setApplications(data.applications || []);
       setStats(data.stats);
@@ -85,7 +89,9 @@ export default function AdminApplicationsPage() {
         hasPrev: data.pagination.page > 1,
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load applications");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load applications",
+      );
     } finally {
       setLoading(false);
     }
@@ -99,7 +105,7 @@ export default function AdminApplicationsPage() {
     endpoint: string,
     body: object,
     successMessage: string,
-    options?: { method?: string; onSuccess?: (data: T) => void }
+    options?: { method?: string; onSuccess?: (data: T) => void },
   ): Promise<boolean> => {
     setActionLoading(true);
     try {
@@ -135,7 +141,7 @@ export default function AdminApplicationsPage() {
         action: reviewAction,
         notes: reviewNotes,
       },
-      `Application ${reviewAction === "APPROVE" ? "approved" : "rejected"} successfully`
+      `Application ${reviewAction === "APPROVE" ? "approved" : "rejected"} successfully`,
     );
   };
 
@@ -143,8 +149,12 @@ export default function AdminApplicationsPage() {
     if (selectedApplications.size === 0) return;
     await handleApiAction(
       "/api/admin/applications/bulk-review",
-      { applicationIds: Array.from(selectedApplications), action: reviewAction, notes: reviewNotes },
-      `Successfully ${reviewAction === "APPROVE" ? "approved" : "rejected"} applications`
+      {
+        applicationIds: Array.from(selectedApplications),
+        action: reviewAction,
+        notes: reviewNotes,
+      },
+      `Successfully ${reviewAction === "APPROVE" ? "approved" : "rejected"} applications`,
     );
   };
 
@@ -154,7 +164,7 @@ export default function AdminApplicationsPage() {
       "/api/admin/applications/bulk-delete",
       { applicationIds: Array.from(selectedApplications) },
       "Successfully deleted applications",
-      { method: "DELETE" }
+      { method: "DELETE" },
     );
   };
 
@@ -164,7 +174,7 @@ export default function AdminApplicationsPage() {
       `/api/applications/${selectedApplication.id}`,
       {},
       "Application deleted successfully",
-      { method: "DELETE" }
+      { method: "DELETE" },
     );
   };
 
@@ -191,7 +201,9 @@ export default function AdminApplicationsPage() {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedApplications(checked ? new Set(applications.map((a) => a.id)) : new Set());
+    setSelectedApplications(
+      checked ? new Set(applications.map((a) => a.id)) : new Set(),
+    );
   };
 
   const handleSelectOne = (id: string, checked: boolean) => {
@@ -231,26 +243,45 @@ export default function AdminApplicationsPage() {
 
   return (
     <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-              Applications Management
-            </h1>
-            <p className="text-muted-foreground mt-1">Manage and review lease applications</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={fetchApplications} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left */}
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
+            Applications Management
+          </h1>
+
+          <p className="text-muted-foreground mt-1">
+            Manage and review lease applications
+          </p>
         </div>
 
+        {/* Right */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchApplications}
+            disabled={loading}
+            className="w-full sm:w-auto rounded-xl"
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto rounded-xl"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </div>
+      
       {/* Stats */}
       {stats && <ApplicationStatsCards stats={stats} />}
 
@@ -289,7 +320,9 @@ export default function AdminApplicationsPage() {
       <PaginationControls
         pagination={pagination}
         onPageChange={(page) => setPagination({ ...pagination, page })}
-        onLimitChange={(limit) => setPagination({ ...pagination, limit, page: 1 })}
+        onLimitChange={(limit) =>
+          setPagination({ ...pagination, limit, page: 1 })
+        }
       />
 
       {/* Dialogs */}
@@ -300,7 +333,9 @@ export default function AdminApplicationsPage() {
         reviewAction={reviewAction}
         reviewNotes={reviewNotes}
         setReviewNotes={setReviewNotes}
-        onConfirm={selectedApplication ? handleReviewApplication : handleBulkReview}
+        onConfirm={
+          selectedApplication ? handleReviewApplication : handleBulkReview
+        }
         loading={actionLoading}
         isSingle={!!selectedApplication}
         application={selectedApplication}
@@ -311,7 +346,9 @@ export default function AdminApplicationsPage() {
         onOpenChange={(open) => !open && resetDialogs()}
         count={selectedApplication ? 1 : selectedCount}
         isBulk={!selectedApplication}
-        onConfirm={selectedApplication ? handleDeleteApplication : handleBulkDelete}
+        onConfirm={
+          selectedApplication ? handleDeleteApplication : handleBulkDelete
+        }
         loading={actionLoading}
       />
     </div>
