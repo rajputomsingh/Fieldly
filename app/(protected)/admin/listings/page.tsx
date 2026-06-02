@@ -397,28 +397,38 @@ export default function AdminListingsPage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left */}
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
             Listings Management
           </h1>
+
           <p className="text-muted-foreground mt-1">
-            Manage and review land listings
+            Manage and monitor all platform listings
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Right */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="sm"
             onClick={fetchListings}
             disabled={loading}
+            className="w-full sm:w-auto rounded-xl"
           >
             <RefreshCw
               className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto rounded-xl"
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>

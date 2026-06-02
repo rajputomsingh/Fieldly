@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Download, UserPlus, RefreshCw, Bell, Users } from "lucide-react";
 import { toast } from "sonner";
 
-import type { AdminUser, PaginationState, UserStats, UserFilters as UserFiltersType } from "./_types";
+import type {
+  AdminUser,
+  PaginationState,
+  UserStats,
+  UserFilters as UserFiltersType,
+} from "./_types";
 import {
   UserStatsCards,
   UserFilters,
@@ -21,7 +26,7 @@ import { BroadcastDialog } from "./_components/dialogs/BroadcastDialog";
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -41,7 +46,7 @@ export default function AdminUsersPage() {
     sortOrder: "desc",
   });
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  
+
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -82,7 +87,9 @@ export default function AdminUsersPage() {
         hasPrev: data.pagination.page > 1,
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to load users");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load users",
+      );
     } finally {
       setLoading(false);
     }
@@ -149,13 +156,15 @@ export default function AdminUsersPage() {
 
   const handleSelectOne = (id: string, checked: boolean) => {
     setSelectedUsers((prev) =>
-      checked ? [...prev, id] : prev.filter((uid) => uid !== id)
+      checked ? [...prev, id] : prev.filter((uid) => uid !== id),
     );
   };
 
   const handleViewUser = (id: string) => router.push(`/admin/users/${id}`);
-  const handleEditUser = (user: AdminUser) => router.push(`/admin/users/${user.id}/edit`);
-  const handleDeleteUser = (user: AdminUser) => toast.info(`Delete functionality coming soon for ${user.name}`);
+  const handleEditUser = (user: AdminUser) =>
+    router.push(`/admin/users/${user.id}/edit`);
+  const handleDeleteUser = (user: AdminUser) =>
+    toast.info(`Delete functionality coming soon for ${user.name}`);
 
   const handleOpenBanDialog = (user: AdminUser) => {
     setSelectedUser(user);
@@ -184,30 +193,50 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-8 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left */}
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Users</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
+            Users
+          </h1>
           <p className="text-muted-foreground mt-1">Manage platform users</p>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Right */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setBroadcastDialogOpen(true)}
-            className="gap-2 rounded-xl"
+            className="rounded-xl flex-1 sm:flex-none"
           >
-            <Bell className="h-4 w-4" />
-            Broadcast
+            <Bell className="h-4 w-4 mr-2" />
+            <span className="hidden xs:inline">Broadcast</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchUsers}
+            disabled={loading}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw
+              className={`h-4 w-4 sm:mr-2 ${loading ? "animate-spin" : ""}`}
+            />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
+
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button size="sm" onClick={() => router.push("/admin/users/new")}>
+
+          <Button
+            size="sm"
+            onClick={() => router.push("/admin/users/new")}
+            className="w-full sm:w-auto"
+          >
             <UserPlus className="h-4 w-4 mr-2" />
             Add User
           </Button>
@@ -229,7 +258,8 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-xl border border-primary/20">
           <Users className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">
-            {selectedUsers.length} user{selectedUsers.length !== 1 ? "s" : ""} selected
+            {selectedUsers.length} user{selectedUsers.length !== 1 ? "s" : ""}{" "}
+            selected
           </span>
           <Button
             size="sm"
