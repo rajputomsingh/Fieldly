@@ -34,7 +34,14 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#b7cf8a", "#4ade80", "#fbbf24", "#f87171", "#a78bfa", "#60a5fa"];
+const COLORS = [
+  "#b7cf8a",
+  "#4ade80",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#60a5fa",
+];
 
 // Type definitions
 interface AdminStats {
@@ -46,11 +53,22 @@ interface AdminStats {
 }
 
 interface AnalyticsData {
-  userGrowth: Array<{ date: string; farmers: number; landowners: number; total: number }>;
+  userGrowth: Array<{
+    date: string;
+    farmers: number;
+    landowners: number;
+    total: number;
+  }>;
   revenue: Array<{ month: string; revenue: number; platformFee: number }>;
   userDistribution: Array<{ name: string; value: number }>;
   listingStatus: Array<{ status: string; count: number; percentage: number }>;
-  recentActivity: Array<{ id: string; type: string; user: string; action: string; timestamp: string }>;
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    user: string;
+    action: string;
+    timestamp: string;
+  }>;
 }
 
 export default function AdminDashboardPage() {
@@ -96,21 +114,24 @@ export default function AdminDashboardPage() {
       value: stats?.listings?.active || 0,
       icon: Home,
       trend: stats?.listings?.trend,
-      color: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+      color:
+        "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
     },
     {
       title: "Applications",
       value: stats?.applications?.pending || 0,
       icon: FileText,
       trend: stats?.applications?.trend,
-      color: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+      color:
+        "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
     },
     {
       title: "Total Revenue",
       value: `₹${((stats?.payments?.total || 0) / 100000).toFixed(1)}L`,
       icon: CreditCard,
       trend: stats?.payments?.trend,
-      color: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+      color:
+        "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
     },
     {
       title: "Open Disputes",
@@ -124,16 +145,23 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left Section */}
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold mt-12">Dashboard</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Platform overview and analytics</p>
+          <h1 className="text-2xl lg:text-3xl font-bold mt-4 lg:mt-12">
+            Dashboard
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Platform overview and analytics
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Right Section */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800"
+            className="h-10 rounded-lg border bg-white dark:bg-gray-800 px-3 text-sm w-full sm:w-[180px]"
           >
             <option value="today">Today</option>
             <option value="yesterday">Yesterday</option>
@@ -141,16 +169,25 @@ export default function AdminDashboardPage() {
             <option value="last30days">Last 30 Days</option>
             <option value="thisMonth">This Month</option>
           </select>
-          <Button variant="outline" size="icon" onClick={fetchDashboardData}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
-          <Button>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={fetchDashboardData}
+              className="shrink-0"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+
+            <Button className="flex-1 sm:flex-none">
+              <Download className="h-4 w-4 mr-2" />
+              <span className="hidden xs:inline">Export</span>
+            </Button>
+          </div>
         </div>
       </div>
-
+      
       {/* Security Alerts */}
       <SecurityAlert />
 
@@ -177,9 +214,24 @@ export default function AdminDashboardPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="farmers" stroke="#4ade80" name="Farmers" />
-                  <Line type="monotone" dataKey="landowners" stroke="#60a5fa" name="Landowners" />
-                  <Line type="monotone" dataKey="total" stroke="#b7cf8a" name="Total" />
+                  <Line
+                    type="monotone"
+                    dataKey="farmers"
+                    stroke="#4ade80"
+                    name="Farmers"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="landowners"
+                    stroke="#60a5fa"
+                    name="Landowners"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#b7cf8a"
+                    name="Total"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -201,7 +253,11 @@ export default function AdminDashboardPage() {
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="revenue" fill="#b7cf8a" name="Revenue (₹)" />
-                  <Bar dataKey="platformFee" fill="#fbbf24" name="Platform Fee" />
+                  <Bar
+                    dataKey="platformFee"
+                    fill="#fbbf24"
+                    name="Platform Fee"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -225,14 +281,21 @@ export default function AdminDashboardPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
+                    label={({ name, percent }) =>
+                      `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                    }
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {(analytics?.userDistribution || []).map((_entry, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
+                    {(analytics?.userDistribution || []).map(
+                      (_entry, index: number) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ),
+                    )}
                   </Pie>
                   <Tooltip />
                 </PieChart>
@@ -249,7 +312,10 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {(analytics?.listingStatus || []).map((item) => (
-                <div key={item.status} className="flex items-center justify-between">
+                <div
+                  key={item.status}
+                  className="flex items-center justify-between"
+                >
                   <span className="text-sm">{item.status}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium">{item.count}</span>
