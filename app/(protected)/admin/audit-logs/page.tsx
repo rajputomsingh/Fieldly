@@ -137,8 +137,19 @@ export default function AuditLogsPage() {
     }
   };
 
-  const getActionBadge = (action: string): { variant: "default" | "secondary" | "destructive" | "outline"; label: string } => {
-    const config: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+  const getActionBadge = (
+    action: string,
+  ): {
+    variant: "default" | "secondary" | "destructive" | "outline";
+    label: string;
+  } => {
+    const config: Record<
+      string,
+      {
+        variant: "default" | "secondary" | "destructive" | "outline";
+        label: string;
+      }
+    > = {
       CREATE_USER: { variant: "default", label: "Create" },
       UPDATE_USER: { variant: "secondary", label: "Update" },
       DELETE_USER: { variant: "destructive", label: "Delete" },
@@ -150,12 +161,19 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold">Audit Logs</h1>
-          <p className="text-gray-500 mt-1">Track all admin activities</p>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
+            Audit Logs
+          </h1>
+
+          <p className="text-muted-foreground mt-1">
+            Track all admin activities
+          </p>
         </div>
-        <Button onClick={handleExport}>
+
+        <Button onClick={handleExport} className="w-full sm:w-auto rounded-xl">
           <Download className="h-4 w-4 mr-2" />
           Export Logs
         </Button>
@@ -166,7 +184,9 @@ export default function AuditLogsPage() {
           <div className="flex flex-wrap items-center gap-4">
             <Select
               value={filterState.action}
-              onValueChange={(value) => setFilterState({ ...filterState, action: value })}
+              onValueChange={(value) =>
+                setFilterState({ ...filterState, action: value })
+              }
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Action" />
@@ -181,7 +201,9 @@ export default function AuditLogsPage() {
             </Select>
             <Select
               value={filterState.entity}
-              onValueChange={(value) => setFilterState({ ...filterState, entity: value })}
+              onValueChange={(value) =>
+                setFilterState({ ...filterState, entity: value })
+              }
             >
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Entity" />
@@ -197,13 +219,17 @@ export default function AuditLogsPage() {
             <Input
               type="date"
               value={filterState.startDate}
-              onChange={(e) => setFilterState({ ...filterState, startDate: e.target.value })}
+              onChange={(e) =>
+                setFilterState({ ...filterState, startDate: e.target.value })
+              }
               className="w-[150px]"
             />
             <Input
               type="date"
               value={filterState.endDate}
-              onChange={(e) => setFilterState({ ...filterState, endDate: e.target.value })}
+              onChange={(e) =>
+                setFilterState({ ...filterState, endDate: e.target.value })
+              }
               className="w-[150px]"
             />
             <Button variant="outline" onClick={fetchLogs}>
@@ -238,7 +264,10 @@ export default function AuditLogsPage() {
                 ))
               ) : logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center py-8 text-gray-500"
+                  >
                     No audit logs found
                   </TableCell>
                 </TableRow>
@@ -249,20 +278,28 @@ export default function AuditLogsPage() {
                   return (
                     <TableRow key={log.id}>
                       <TableCell>
-                        <Badge variant={actionBadge.variant}>{actionBadge.label}</Badge>
+                        <Badge variant={actionBadge.variant}>
+                          {actionBadge.label}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <EntityIcon className="h-4 w-4" />
                           <span>{log.entity}</span>
                           {log.entityId && (
-                            <span className="text-xs text-gray-500">{log.entityId.slice(-8)}</span>
+                            <span className="text-xs text-gray-500">
+                              {log.entityId.slice(-8)}
+                            </span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm">{log.admin?.name || "Unknown"}</p>
-                        <p className="text-xs text-gray-500">{log.admin?.email}</p>
+                        <p className="text-sm">
+                          {log.admin?.name || "Unknown"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {log.admin?.email}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <code className="text-xs">{log.ipAddress}</code>
@@ -276,8 +313,12 @@ export default function AuditLogsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm">{format(new Date(log.createdAt), "MMM d, yyyy")}</p>
-                        <p className="text-xs text-gray-500">{format(new Date(log.createdAt), "h:mm a")}</p>
+                        <p className="text-sm">
+                          {format(new Date(log.createdAt), "MMM d, yyyy")}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {format(new Date(log.createdAt), "h:mm a")}
+                        </p>
                       </TableCell>
                     </TableRow>
                   );
@@ -291,15 +332,18 @@ export default function AuditLogsPage() {
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-500">
-            Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} logs
+            Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} logs
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               disabled={!pagination.hasPrev}
-              onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+              onClick={() =>
+                setPagination({ ...pagination, page: pagination.page - 1 })
+              }
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -310,7 +354,9 @@ export default function AuditLogsPage() {
               variant="outline"
               size="icon"
               disabled={!pagination.hasNext}
-              onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+              onClick={() =>
+                setPagination({ ...pagination, page: pagination.page + 1 })
+              }
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
