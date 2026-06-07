@@ -179,7 +179,7 @@ export default function AuditLogsPage() {
         </Button>
       </div>
 
-      <Card>
+      <Card>  
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <Select
