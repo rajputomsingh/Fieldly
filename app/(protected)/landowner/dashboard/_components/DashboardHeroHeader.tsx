@@ -2,7 +2,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,10 @@ export function DashboardHeroHeader({ name }: Props) {
 
   const handleAddLand = () => {
     router.push("/landowner/land/new");
+  };
+
+  const handleSavedListings = () => {
+    router.push("/saved"); // Updated route
   };
 
   if (isLoading) {
@@ -55,6 +59,7 @@ export function DashboardHeroHeader({ name }: Props) {
 
           <div className="flex gap-3">
             <div className="h-10 w-10 bg-gray-200 rounded-full" />
+            <div className="h-10 w-10 bg-gray-200 rounded-full" />
             <div className="h-10 w-24 bg-gray-200 rounded-full" />
             <div className="h-10 w-28 bg-gray-200 rounded-full" />
           </div>
@@ -69,7 +74,7 @@ export function DashboardHeroHeader({ name }: Props) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       className="relative mb-12 mt-16"
-      style={{ zIndex: 1 }} // 🔧 Lower than main header (which is typically z-40 or z-50)
+      style={{ zIndex: 1 }}
     >
       <motion.div
         whileHover={{ y: -3, scale: 1.01 }}
@@ -103,13 +108,71 @@ export function DashboardHeroHeader({ name }: Props) {
           </p>
         </div>
 
-        {/* RIGHT - Notification Bell with proper positioning */}
-        <div className="relative flex items-center gap-3" style={{ zIndex: 20 }}>
-          {/* Notification Bell - Dropdown needs high z-index but container should not overlap header */}
+        {/* RIGHT - Action Buttons */}
+        <div
+          className="relative flex items-center gap-3"
+          style={{ zIndex: 20 }}
+        >
+          {/* Notification Bell */}
           <div className="relative">
             <LandownerNotificationBell />
           </div>
 
+          {/* Saved Listings Icon Button with matching container style */}
+          <div className="relative group">
+            <motion.button
+              whileHover={{ y: -1, scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              onClick={handleSavedListings}
+              className="
+                relative
+                w-10 h-10
+                rounded-full
+                bg-white/80
+                backdrop-blur-sm
+                border border-gray-200/60
+                shadow-sm
+                hover:shadow-md
+                hover:bg-white
+                hover:border-gray-300
+                flex items-center justify-center
+                transition-all duration-200
+                cursor-pointer
+              "
+            >
+              <Bookmark className="w-4 h-4 text-gray-700" />
+            </motion.button>
+
+            {/* Speech Bubble Tooltip */}
+            <div
+              className="
+                absolute bottom-full mb-3 left-1/2 -translate-x-1/2
+                opacity-0 group-hover:opacity-100
+                translate-y-2 group-hover:translate-y-0
+                transition-all duration-200
+                pointer-events-none
+                z-30
+              "
+            >
+              <div className="relative bg-black text-white text-xs font-medium px-3 py-2 rounded-xl whitespace-nowrap shadow-xl">
+                Saved Listings
+                {/* Triangle pointer */}
+                <div
+                  className="
+                    absolute left-1/2 -bottom-2
+                    -translate-x-1/2
+                    w-0 h-0
+                    border-l-[6px] border-l-transparent
+                    border-r-[6px] border-r-transparent
+                    border-t-[8px] border-t-black
+                  "
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Export Button */}
           <motion.div
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.96 }}
@@ -124,6 +187,7 @@ export function DashboardHeroHeader({ name }: Props) {
             </Button>
           </motion.div>
 
+          {/* Add Land Button */}
           <motion.div
             whileHover={{ y: -1, scale: 1.03 }}
             whileTap={{ scale: 0.96 }}
