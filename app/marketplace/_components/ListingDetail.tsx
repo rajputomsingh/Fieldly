@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SavedButton } from "./SavedButton";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { QRCodeShareModal } from "./QRCodeShareModal";
 import { useUser } from "@clerk/nextjs";
 import {
   MapPin,
@@ -38,10 +39,18 @@ import {
   Eye,
   Ban,
   Hourglass,
+  Copy,
+  QrCode,
 } from "lucide-react";
 import { formatCurrency, formatTimeLeft, getInitials, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ============= TYPES =============
 interface SoilReport {
@@ -489,13 +498,14 @@ export function ListingDetail({ listing }: ListingDetailProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageDirection, setImageDirection] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
   const [timeLeft, setTimeLeft] = useState(() =>
     Math.max(0, new Date(listing.endDate).getTime() - Date.now()),
   );
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("description");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { toast } = useToast();
   const { user: clerkUser } = useUser();
 
@@ -506,6 +516,14 @@ export function ListingDetail({ listing }: ListingDetailProps) {
   const currentImage = useMemo(
     () => allImages[currentImageIndex]?.url || "/images/placeholder-land.jpg",
     [allImages, currentImageIndex],
+  );
+
+  const listingUrl = useMemo(
+    () =>
+      typeof window !== "undefined"
+        ? `${window.location.origin}/marketplace/listings/${listing.id}`
+        : "",
+    [listing.id],
   );
 
   const startDate = useMemo(
@@ -604,54 +622,56 @@ export function ListingDetail({ listing }: ListingDetailProps) {
     );
     return () => clearInterval(timer);
   }, []);
-
   // ============= HANDLERS =============
-  const handleViewOnMap = useCallback(() => {
-    const coords = listing.land?.latitude && listing.land?.longitude;
-    const url = coords
-      ? `https://www.google.com/maps?q=${listing.land.latitude},${listing.land.longitude}`
-      : formattedLocation !== "Location not specified"
-        ? `https://www.google.com/maps/search/${encodeURIComponent(formattedLocation)}`
-        : null;
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
-    else
+  const handleViewOnMap = () => {
+    const latitude = listing.land?.latitude ?? null;
+    const longitude = listing.land?.longitude ?? null;
+
+    let url: string | null = null;
+
+    if (latitude && longitude) {
+      url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    } else if (formattedLocation !== "Location not specified") {
+      url = `https://www.google.com/maps/search/${encodeURIComponent(formattedLocation)}`;
+    }
+
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
       toast({
         title: "Location unavailable",
         description: "Map location is not available for this listing",
         variant: "destructive",
       });
-  }, [
-    listing.land?.latitude,
-    listing.land?.longitude,
-    formattedLocation,
-    toast,
-  ]);
+    }
+  };
 
-  const handleGetDirections = useCallback(() => {
-    const coords = listing.land?.latitude && listing.land?.longitude;
-    const url = coords
-      ? `https://www.google.com/maps/dir/?api=1&destination=${listing.land.latitude},${listing.land.longitude}`
-      : formattedLocation !== "Location not specified"
-        ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(formattedLocation)}`
-        : null;
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
-    else
+  const handleGetDirections = () => {
+    const latitude = listing.land?.latitude ?? null;
+    const longitude = listing.land?.longitude ?? null;
+
+    let url: string | null = null;
+
+    if (latitude && longitude) {
+      url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+    } else if (formattedLocation !== "Location not specified") {
+      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(formattedLocation)}`;
+    }
+
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } else {
       toast({
         title: "Directions unavailable",
         description: "Cannot get directions for this location",
         variant: "destructive",
       });
-  }, [
-    listing.land?.latitude,
-    listing.land?.longitude,
-    formattedLocation,
-    toast,
-  ]);
+    }
+  };
 
-  const handleShare = async () => {
-    setIsSharing(true);
+  const handleCopyLink = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(listingUrl);
       toast({
         title: "Link copied!",
         description: "Listing URL copied to clipboard",
@@ -662,10 +682,13 @@ export function ListingDetail({ listing }: ListingDetailProps) {
         description: "Please try again",
         variant: "destructive",
       });
-    } finally {
-      setIsSharing(false);
     }
-  };
+  }, [listingUrl, toast]);
+
+  const handleGenerateQR = useCallback(() => {
+    setShowQrModal(true);
+    setIsDropdownOpen(false);
+  }, []);
 
   const handleSave = (saved: boolean) => {
     setIsSaved(saved);
@@ -682,6 +705,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
     setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
     setIsImageLoading(true);
   };
+
   const prevImage = () => {
     setImageDirection(-1);
     setCurrentImageIndex(
@@ -721,6 +745,7 @@ export function ListingDetail({ listing }: ListingDetailProps) {
       bg: "bg-gray-100 dark:bg-gray-900/30",
     };
   };
+
   const demandConfig = getDemandScoreConfig(listing.analytics?.demandScore);
 
   const renderTabContent = () => {
@@ -779,19 +804,10 @@ export function ListingDetail({ listing }: ListingDetailProps) {
                 <p className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100">
                   Live Auction in Progress
                 </p>
-
-                <span
-                  className="
-            rounded-full border border-neutral-200 dark:border-neutral-700
-            px-2 py-0.5
-            text-[10px] font-medium uppercase tracking-[0.12em]
-            text-neutral-600 dark:text-neutral-400
-          "
-                >
+                <span className="rounded-full border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-600 dark:text-neutral-400">
                   Restricted Access
                 </span>
               </div>
-
               <p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
                 Participation in live auctions is currently limited to verified
                 farmer accounts.
@@ -1114,21 +1130,44 @@ export function ListingDetail({ listing }: ListingDetailProps) {
                   {listing.title}
                 </motion.h1>
                 <div className="flex gap-2">
-                  <motion.div whileHover={hoverGlow} whileTap={tapScale}>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleShare}
-                      disabled={isSharing}
-                      className="rounded-full"
+                  {/* Share Dropdown with QR Code option */}
+                  <DropdownMenu
+                    open={isDropdownOpen}
+                    onOpenChange={setIsDropdownOpen}
+                  >
+                    <DropdownMenuTrigger asChild>
+                      <motion.div whileHover={hoverGlow} whileTap={tapScale}>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="rounded-full"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="w-48 p-1.5 rounded-xl border border-gray-200 shadow-lg"
                     >
-                      {isSharing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Share2 className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </motion.div>
+                      <DropdownMenuItem
+                        onClick={handleCopyLink}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                        <Copy className="h-4 w-4 text-gray-600" />
+                        <span className="text-sm font-medium">Copy Link</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleGenerateQR}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
+                        <QrCode className="h-4 w-4 text-gray-600" />
+                        <span className="text-sm font-medium">
+                          Generate QR Code
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <SavedButton
                     listingId={listing.id}
                     initialSaved={isSaved}
@@ -1386,6 +1425,15 @@ export function ListingDetail({ listing }: ListingDetailProps) {
           </Tabs>
         </motion.div>
       </div>
+
+      {/* QR Code Modal */}
+      <QRCodeShareModal
+        isOpen={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        listingUrl={listingUrl}
+        listingId={listing.id}
+        listingTitle={listing.title}
+      />
     </motion.div>
   );
 }
