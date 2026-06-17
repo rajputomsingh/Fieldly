@@ -2,16 +2,16 @@
   "name": "Fieldly",
   "version": "0.1.0",
   "private": true,
-"scripts": {
-  "dev": "next dev --turbopack",
-  "build": "next build",
-  "start": "node server.js",
-  "lint": "eslint",
-  "postinstall": "prisma generate",
-  "prisma:generate": "prisma generate",
-  "prisma:studio": "prisma studio",
-  "prepare": "husky install"
-},
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "node server.js",
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:studio": "prisma studio",
+    "prepare": "husky install"
+  },
   "dependencies": {
     "@clerk/nextjs": "^6.39.3",
     "@hookform/resolvers": "^5.2.2",
@@ -52,6 +52,7 @@
     "react-countup": "^6.5.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
+    "react-qr-code": "^2.2.0",
     "recharts": "^3.7.0",
     "sonner": "^2.0.7",
     "svix": "^1.84.1",
