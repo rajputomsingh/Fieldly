@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 // app/(marketplace)/page.tsx
 "use client";
 

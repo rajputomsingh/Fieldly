@@ -31,7 +31,7 @@ import { Send, AlertTriangle, Link, Clock } from "lucide-react";
 interface BroadcastFormProps {
   isSending: boolean;
   setIsSending: (v: boolean) => void;
-  onSuccess?: () => void; // ✅ Callback for real-time updates
+  onSuccess?: () => void; // Callback for real-time updates
 }
 
 const generateTimeOptions = () => {
@@ -122,7 +122,7 @@ export function BroadcastForm({ isSending, setIsSending, onSuccess }: BroadcastF
           toast.success(`Sent to ${data.sent} users`);
         }
         resetForm();
-        onSuccess?.(); // ✅ Trigger real-time refresh
+        onSuccess?.(); // Trigger real-time refresh
       } else {
         toast.error(data.error || "Failed");
       }

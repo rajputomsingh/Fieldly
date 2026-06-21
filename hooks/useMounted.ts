@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 // hooks/useMounted.ts
 import { useEffect, useState } from "react";
 
