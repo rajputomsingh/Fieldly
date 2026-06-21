@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "node server.js",
+    "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.3",
