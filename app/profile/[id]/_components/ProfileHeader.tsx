@@ -12,7 +12,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { ProfileUser, AvailableLand, ExistingApplication } from "@/types/profile";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -39,6 +39,12 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
   const router = useRouter();
   const { user: currentUser } = useUser();
   
+  // Fix: Use ref for Date.now() to maintain purity 
+  const joinDateRef = useRef(new Date(user.joinedAt).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  }));
+  
   const [isSharing, setIsSharing] = useState(false);
   const [showContactTooltip, setShowContactTooltip] = useState(false);
   const [showShareTooltip, setShowShareTooltip] = useState(false);
@@ -52,10 +58,16 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
   const isLandowner = user.role === "LANDOWNER";
   const isOwnProfile = currentUserId === user.clerkId || currentUser?.id === user.clerkId;
 
-  const joinDate = new Date(user.joinedAt).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
+  // FIXED: Moved checkExistingApplication BEFORE fetchAvailableLands
+  const checkExistingApplication = useCallback(async (landId: string) => {
+    try {
+      const res = await fetch(`/api/applications/check?landId=${landId}`);
+      const data = await res.json();
+      setExistingApplication(data.application);
+    } catch (error) {
+      console.error("Failed to check application:", error);
+    }
+  }, []);
 
   const fetchAvailableLands = useCallback(async () => {
     try {
@@ -65,22 +77,12 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
       
       if (data.lands?.length > 0) {
         setSelectedLandId(data.lands[0].id);
-        checkExistingApplication(data.lands[0].id);
+        checkExistingApplication(data.lands[0].id); // Now safely called
       }
     } catch (error) {
       console.error("Failed to fetch lands:", error);
     }
-  }, [user.id]);
-
-  const checkExistingApplication = async (landId: string) => {
-    try {
-      const res = await fetch(`/api/applications/check?landId=${landId}`);
-      const data = await res.json();
-      setExistingApplication(data.application);
-    } catch (error) {
-      console.error("Failed to check application:", error);
-    }
-  };
+  }, [user.id, checkExistingApplication]);
 
   useEffect(() => {
     if (showApplicationDialog && isFarmer && !isOwnProfile) {
@@ -88,7 +90,7 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
     }
   }, [showApplicationDialog, isFarmer, isOwnProfile, fetchAvailableLands]);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     setIsSharing(true);
     try {
       if (navigator.share) {
@@ -105,9 +107,9 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
     } finally {
       setIsSharing(false);
     }
-  };
+  }, [user.name]);
 
-  const handleRequestLease = () => {
+  const handleRequestLease = useCallback(() => {
     if (!currentUser && !currentUserId) {
       router.push("/sign-in");
       return;
@@ -119,28 +121,28 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
     }
     
     setShowApplicationDialog(true);
-  };
+  }, [currentUser, currentUserId, isFarmer, router]);
 
-  const handleStartApplication = () => {
+  const handleStartApplication = useCallback(() => {
     if (selectedLandId) {
       router.push(`/applications/new?landId=${selectedLandId}&ownerId=${user.id}`);
     } else {
       router.push(`/applications/new?ownerId=${user.id}`);
     }
     setShowApplicationDialog(false);
-  };
+  }, [selectedLandId, user.id, router]);
 
-  const handleViewExistingApplication = () => {
+  const handleViewExistingApplication = useCallback(() => {
     if (existingApplication?.id) {
       router.push(`/applications/${existingApplication.id}`);
       setShowApplicationDialog(false);
     }
-  };
+  }, [existingApplication?.id, router]);
 
-  const handleContinueApplication = () => {
+  const handleContinueApplication = useCallback(() => {
     setIsLoading(true);
     handleStartApplication();
-  };
+  }, [handleStartApplication]);
 
   return (
     <>
@@ -200,7 +202,7 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
 
                   <div className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
-                    Joined {joinDate}
+                    Joined {joinDateRef.current}
                   </div>
                 </div>
               </div>
@@ -209,7 +211,7 @@ export function ProfileHeader({ user, currentUserRole, currentUserId }: Props) {
             {/* RIGHT BUTTONS */}
             <div className="flex gap-3 shrink-0 mt-7 lg:mt-0">
               
-              {/* PRODUCTION REQUEST TO LEASE BUTTON */}
+              {/* REQUEST TO LEASE BUTTON */}
               {isFarmer && isLandowner && !isOwnProfile && (
                 <motion.button
                   whileHover={{ scale: 1.02, y: -1 }}
