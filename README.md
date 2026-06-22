@@ -1,22 +1,21 @@
-# 🌾Fieldly
+# 🌾 Fieldly
 
-**Digital Farmland Leasing and Agricultural Intelligence Platform**
+> Digital Farmland Leasing & Agricultural Intelligence Platform
 
+Fieldly is building trusted digital infrastructure for farmland leasing, agricultural operations, and rural coordination.
+
+From land discovery and farmer onboarding to lease management and marketplace intelligence, Fieldly streamlines agricultural land operations through a modern digital platform.
+
+[![Release](https://img.shields.io/badge/Release-v0.6.0--beta-blue)](../../releases)
+[![Codename](https://img.shields.io/badge/Codename-Catalyst-purple)](../../releases)
+[![Roadmap](https://img.shields.io/badge/Next-Vanguard-success)](../../milestones)
+[![Status](https://img.shields.io/badge/Status-Active-success)](#)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis)](https://redis.io/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI/CD-2088FF?logo=github-actions)](https://github.com/features/actions)
-[![Trivy](https://img.shields.io/badge/Security-Trivy-1904DA)](https://trivy.dev/)
-[![Architecture](https://img.shields.io/badge/Architecture-Event_Driven-black)](https://github.com/rajputomsingh/Fieldly)
-[![Deployment](https://img.shields.io/badge/Deployment-Standalone_Runtime-success)](https://github.com/rajputomsingh/Fieldly)
-[![Scalability](https://img.shields.io/badge/Scalable-Production_Ready-success)](https://github.com/rajputomsingh/Fieldly)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PRs](https://img.shields.io/badge/PRs-Welcome-brightgreen)](CONTRIBUTING.md)
-
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker)](https://www.docker.com/)
+[![CI/CD](https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF?logo=github-actions)](https://github.com/features/actions)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 ## App Preview
 
@@ -25,8 +24,6 @@
   <p><em>Intelligent Farmland Leasing With Fieldly</em></p>
 </div>
 
-<br />
-
 <div align="center">
   <img src="https://github.com/user-attachments/assets/64c8d290-62ee-4d7a-b7d1-9c54676e60a1" alt="Fieldly Platform Interface" width="800" />
   <p><em>Agricultural Intelligence Platform Interface</em></p>
@@ -34,27 +31,48 @@
 
 ## Overview
 
-Fieldly addresses structural inefficiencies in farmland leasing and agricultural decision-making. The platform combines verified identity systems, digital leasing infrastructure, intelligent matching, and a real-time agricultural insights engine into a unified ecosystem. It is designed to scale as an infrastructure layer for agricultural operations and rural financial services.
+Agricultural land leasing remains heavily fragmented, relying on informal agreements, manual verification processes, and disconnected communication channels.
 
-[![Realtime](https://img.shields.io/badge/Realtime-Enabled-purple)](https://github.com/rajputomsingh/Fieldly)
-[![Auth](https://img.shields.io/badge/Auth-Clerk-blueviolet)](https://clerk.com/)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL-blue)](https://www.postgresql.org/)
-[![Caching](https://img.shields.io/badge/Caching-Redis-red)](https://redis.io/)
-[![API](https://img.shields.io/badge/API-Type_Safe-green)](https://www.typescriptlang.org/)
+Fieldly provides a unified platform that enables:
 
-### Mission
+- Verified farmer and landowner onboarding
+- Digital farmland discovery
+- Marketplace-driven land leasing
+- Application and bidding workflows
+- Administrative governance tools
+- Real-time notifications and engagement systems
+- Agricultural intelligence and operational insights
+
+The platform is designed as a scalable foundation for the future of agricultural commerce.
+
+## Mission
 
 Build trusted digital infrastructure for farmland leasing, agricultural coordination, and rural intelligence systems.
 
-## Problem Statement
+## Status
 
-| Challenge | Impact |
-|---|---|
-| Fragmented Leasing | Informal agreements cause disputes and operational inefficiencies |
-| Trust Deficiency | No standardized verification for land parcels or participants |
-| Information Asymmetry | Farmers lack access to actionable, data-driven insights |
-| Low Asset Utilization | Landowners face operational opacity and underuse of land |
-| Siloed Systems | No integrated platform combining leasing with intelligence |
+**Current Release:** v0.6.0-beta — Catalyst  
+**Next Milestone:** Vanguard (v0.7.0-beta)  
+**Development Status:** Active  
+
+**Road to Production:** Genesis → Atlas → Nexus → Forge → Sentinel → Catalyst → Vanguard → Meridian → Horizon → Frontier
+
+## Product Evolution
+
+Fieldly is developed through milestone-driven releases inspired by modern SaaS engineering practices.
+
+| Version | Codename | Focus |
+|----------|-----------|--------|
+| v0.1.0-alpha | Genesis | Authentication & Onboarding |
+| v0.2.0-alpha | Atlas | Marketplace Foundation |
+| v0.3.0-alpha | Nexus | Applications, Notifications & Administration |
+| v0.4.0-beta | Forge | Infrastructure & Deployment |
+| v0.5.0-beta | Sentinel | Security & Governance |
+| v0.6.0-beta | Catalyst | Marketplace Refinement & UX |
+| v0.7.0-beta | Vanguard | Verification, Leasing & Payments |
+| v0.8.0-beta | Meridian | Marketplace Intelligence |
+| v0.9.0-rc.1 | Horizon | Production Hardening |
+| v1.0.0 | Frontier | Public Production Release |
 
 ## Solution
 
@@ -71,11 +89,6 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 - Digital workflows with React Hook Form and Zod validation
 
 ### Modular Insights Engine
-
-[![Insights Engine](https://img.shields.io/badge/Insights-Enabled-orange)](https://github.com/rajputomsingh/Fieldly)
-[![Data Pipeline](https://img.shields.io/badge/Data-Pipeline-yellow)](https://github.com/rajputomsingh/Fieldly)
-[![Decision Engine](https://img.shields.io/badge/Decision-System-critical)](https://github.com/rajputomsingh/Fieldly)
-
 - Real-time agricultural intelligence from multi-source data
 - Actionable recommendations for irrigation, planting, and harvesting
 - Interactive data visualization with Recharts
@@ -85,7 +98,7 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 - Rate limiting with Upstash Redis
 - Type-safe database operations with Prisma ORM
 
-## System Architecture
+## Architecture
 
 Fieldly is built as a modular, event-driven system designed for scalability and real-time data processing.
 
@@ -96,7 +109,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 | Client Layer | Web application for landowners and farmers | Next.js, React, TypeScript 5, Tailwind CSS 4 |
 | Authentication | User identity and access management | Clerk |
 | API Layer | Typed backend services and business logic | Next.js API Routes, Server Actions |
-| Data Layer | Relational data with type-safe queries | PostgreSQL, Prisma ORM 6.19 |
+| Data Layer | Relational data with type-safe queries | PostgreSQL, Prisma ORM |
 | Realtime Layer | Event-driven synchronization | Pusher (WebSockets) |
 | Caching & Rate Limiting | Performance and protection | Upstash Redis |
 | File Storage | Document and media management | Supabase Storage |
@@ -111,7 +124,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 
 #### Leasing and Contract Engine
 - Digital contract templates with React Hook Form
-- Schema validation using Zod 4
+- Schema validation using Zod
 - Real-time status updates via Pusher
 - Toast notifications with Sonner
 
@@ -168,7 +181,7 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 | Risk Scoring | Planned |
 | Yield Prediction | Planned |
 
-## Tech Stack
+## Technology Stack
 
 ### Frontend
 
@@ -201,53 +214,51 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 
 ### Authentication
 
-| Technology | Version | Purpose |
-|---|---|---|
-| Clerk | 6.37 | Authentication and user management |
+| Technology | Purpose |
+|---|---|
+| Clerk | Authentication and user management |
 
 ### State Management
 
-| Technology | Version | Purpose |
-|---|---|---|
-| Zustand | 5.0 | Lightweight client-side state management |
-| TanStack React Query | 5.97 | Server state and data fetching |
+| Technology | Purpose |
+|---|---|
+| Zustand | Lightweight client-side state management |
+| TanStack React Query | Server state and data fetching |
 
 ### Developer Infrastructure
 
-[![Code Style](https://img.shields.io/badge/Code%20Style-Prettier-F7B93E)](https://prettier.io/)
-[![Lint](https://img.shields.io/badge/Lint-ESLint-4B32C3)](https://eslint.org/)
-[![Type Safety](https://img.shields.io/badge/TypeScript-Strict-blue)](https://www.typescriptlang.org/)
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-black)](https://github.com/features/actions)
+| Technology | Purpose |
+|---|---|
+| ESLint | Code linting |
+| Prettier | Code formatting |
+| Husky | Git hooks |
+| Lint Staged | Pre-commit file linting |
 
-| Technology | Version | Purpose |
-|---|---|---|
-| ESLint | 9 | Code linting |
-| Prettier | 3.8 | Code formatting |
-| Husky | 9.1 | Git hooks |
-| Lint Staged | 16.4 | Pre-commit file linting |
+## Roadmap
 
+### Vanguard (v0.7.0-beta)
+- Identity verification
+- Lease agreement workflows
+- Payment infrastructure
+- Security deposits
 
-## Core Dependencies
+### Meridian (v0.8.0-beta)
+- Advanced marketplace search
+- Recommendation engine
+- Marketplace intelligence
+- Analytics dashboards
 
-```json
-{
-  "next": "16.1.6",
-  "react": "19.2.3",
-  "react-dom": "19.2.3",
-  "typescript": "^5",
-  "tailwindcss": "^4",
-  "prisma": "^6.19.0",
-  "clerk": "^6.37.0",
-  "pusher": "^8.4.0",
-  "zustand": "^5.0.0",
-  "recharts": "^3.7.0",
-  "react-hook-form": "^7.71.0",
-  "zod": "^4.3.0",
-  "framer-motion": "^12.29.0",
-  "sonner": "^2.0.0",
-  "lucide-react": "^0.563.0"
-}
-```
+### Horizon (v0.9.0-rc.1)
+- Security hardening
+- Performance optimization
+- Monitoring and observability
+- Release readiness
+
+### Frontier (v1.0.0)
+- Public production launch
+- Revenue infrastructure
+- Complete leasing lifecycle
+- Marketplace operations platform
 
 ## ⚡Installation & Setup
 
