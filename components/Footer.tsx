@@ -1,3 +1,4 @@
+// components/Footer.tsx
 "use client";
 
 import Image from "next/image";
@@ -11,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
+import { ReleaseBadge } from "@/components/ReleaseBadge";
 
 /* ================= ANIMATION ================= */
 
@@ -79,6 +81,8 @@ export default function Footer() {
     { name: "Status", path: "/status" },
   ];
 
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="relative overflow-hidden">
       {/* ================= BACKGROUND ================= */}
@@ -90,7 +94,6 @@ export default function Footer() {
           sizes="100vw"
           className="object-cover"
         />
-
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-background to-transparent" />
       </div>
 
@@ -133,7 +136,7 @@ export default function Footer() {
 
             {/* SOCIAL */}
             <div className="mt-8 flex items-center gap-3">
-              <SocialIcon href="#https://www.linkedin.com/in/rajputomsingh" icon={<Linkedin size={18} />} />
+              <SocialIcon href="https://www.linkedin.com/in/rajputomsingh" icon={<Linkedin size={18} />} />
               <SocialIcon href="#" icon={<Twitter size={18} />} />
               <SocialIcon href="https://github.com/rajputomsingh/Fieldly/" icon={<Github size={18} />} />
             </div>
@@ -153,6 +156,22 @@ export default function Footer() {
             </div>
           </motion.div>
         </div>
+
+        {/* ================= BOTTOM BAR ================= */}
+        <motion.div
+          variants={fadeUp}
+          className="mt-16 pt-8 border-t border-black/10"
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Copyright */}
+            <p className="text-sm text-black/60">
+              © {currentYear} Fieldly. All rights reserved.
+            </p>
+
+            {/* Premium Release Badge - Imported */}
+            <ReleaseBadge />
+          </div>
+        </motion.div>
       </motion.div>
     </footer>
   );
@@ -180,7 +199,6 @@ function FooterColumn({
       <h4 className="text-sm font-semibold tracking-wide text-black/60">
         {title}
       </h4>
-
       <ul className="mt-5 space-y-3.5">
         {links.map((link, index) => (
           <motion.li
@@ -194,12 +212,10 @@ function FooterColumn({
               className="group flex items-center gap-1 text-[15px] font-medium text-black/75 transition hover:text-black hover:translate-x-1.5"
             >
               <span>{link.name}</span>
-
               <ChevronRight
                 size={14}
                 className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition"
               />
-
               {isEnhanced && link.description && (
                 <span className="ml-1 hidden text-[12px] text-black/40 lg:inline">
                   {link.description}
