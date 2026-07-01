@@ -98,54 +98,7 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 - Rate limiting with Upstash Redis
 - Type-safe database operations with Prisma ORM
 
-## Architecture
-
-Fieldly is built as a modular, event-driven system designed for scalability and real-time data processing.
-
-### Architecture Layers
-
-| Layer | Purpose | Technologies |
-|---|---|---|
-| Client Layer | Web application for landowners and farmers | Next.js, React, TypeScript 5, Tailwind CSS 4 |
-| Authentication | User identity and access management | Clerk |
-| API Layer | Typed backend services and business logic | Next.js API Routes, Server Actions |
-| Data Layer | Relational data with type-safe queries | PostgreSQL, Prisma ORM |
-| Realtime Layer | Event-driven synchronization | Pusher (WebSockets) |
-| Caching & Rate Limiting | Performance and protection | Upstash Redis |
-| File Storage | Document and media management | Supabase Storage |
-
-### Core Modules
-
-#### Identity and Verification Engine
-- Multi-factor authentication
-- Social login providers
-- Role-based access control (Landowner, Farmer, Admin)
-- Webhook integration via Svix for event synchronization
-
-#### Leasing and Contract Engine
-- Digital contract templates with React Hook Form
-- Schema validation using Zod
-- Real-time status updates via Pusher
-- Toast notifications with Sonner
-
-#### Matching and Allocation System
-- Intelligent farmer-land matching algorithms
-- Preference-based filtering
-- Skills and crop compatibility assessment
-- Animated UI transitions with Framer Motion
-
-#### Insights Engine
-- Irrigation optimization: soil moisture and weather integration
-- Crop monitoring: real-time field condition tracking
-- Data visualization: interactive charts with Recharts
-- Animated statistics: number animations with React CountUp
-- Real-time alerts: critical condition notifications via Pusher
-
-#### Data Pipeline
-- Weather data integration
-- Satellite imagery processing (planned)
-- Soil sensor data collection
-- Scheduled jobs for data ingestion
+  <img width="1496" height="1002" alt="ChatGPT Image Jul 1, 2026, 05_44_50 PM" src="https://github.com/user-attachments/assets/395c65fb-a63e-4da6-9981-b5df9f564fcb" />
 
 ## Features
 
@@ -181,59 +134,6 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 | Risk Scoring | Planned |
 | Yield Prediction | Planned |
 
-## Technology Stack
-
-### Frontend
-
-| Technology | Purpose |
-|---|---|
-| Next.js | React framework with App Router and Server Components |
-| React | Concurrent UI rendering and component architecture |
-| TypeScript | End-to-end type-safe development |
-| Tailwind CSS | Utility-first styling system |
-| Radix UI | Accessible headless UI primitives |
-| Framer Motion | Declarative animations and transitions |
-| Lucide React | Icon system |
-| Recharts | Interactive data visualization |
-| React CountUp | Animated statistical counters |
-| Sonner | Toast notification system |
-| next-themes | Theme management and dark mode |
-| React Hook Form | Performant form state management |
-| Zod | Runtime schema validation |
-
-### Backend & Infrastructure
-
-| Technology | Purpose |
-|---|---|
-| Prisma ORM | Type-safe database access and query management |
-| PostgreSQL | Primary relational database |
-| Supabase Storage | Object storage for media and documents |
-| Upstash Redis | Caching, rate limiting, and transient state management |
-| Pusher | Real-time event synchronization via WebSockets |
-| Svix | Webhook delivery and event handling |
-
-### Authentication
-
-| Technology | Purpose |
-|---|---|
-| Clerk | Authentication and user management |
-
-### State Management
-
-| Technology | Purpose |
-|---|---|
-| Zustand | Lightweight client-side state management |
-| TanStack React Query | Server state and data fetching |
-
-### Developer Infrastructure
-
-| Technology | Purpose |
-|---|---|
-| ESLint | Code linting |
-| Prettier | Code formatting |
-| Husky | Git hooks |
-| Lint Staged | Pre-commit file linting |
-
 ## Roadmap
 
 ### Vanguard (v0.7.0-beta)
@@ -267,7 +167,6 @@ Fieldly is built as a modular, event-driven system designed for scalability and 
 ```bash
 git clone https://github.com/rajputomsingh/Fieldly.git
 cd Fieldly
-```
 
 ### Install Dependencies
 
