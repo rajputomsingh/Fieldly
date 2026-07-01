@@ -98,7 +98,13 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 - Rate limiting with Upstash Redis
 - Type-safe database operations with Prisma ORM
 
-  <img width="1496" height="1002" alt="ChatGPT Image Jul 1, 2026, 05_44_50 PM" src="https://github.com/user-attachments/assets/395c65fb-a63e-4da6-9981-b5df9f564fcb" />
+  <p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/395c65fb-a63e-4da6-9981-b5df9f564fcb"
+    alt="Fieldly High-Level Architecture"
+    width="100%"
+  />
+</p>
 
 ## Features
 
