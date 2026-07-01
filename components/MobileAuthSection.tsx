@@ -10,7 +10,7 @@ interface MobileAuthSectionProps {
   onClose: () => void;
 }
 
-export function MobileAuthSection({ onClose }: MobileAuthSectionProps) {
+export function MobileAuthSection({ onClose } : MobileAuthSectionProps) {
   return (
     <div className="mt-6">
       <SignedOut>
