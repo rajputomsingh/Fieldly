@@ -6,9 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRelease } from "@/hooks/useRelease";
 
 export function ReleaseBadge() {
-  const { release, isLoading, version, releaseUrl } = useRelease();
+  const { release, isLoading } = useRelease();
 
-  // Loading skeleton
   if (isLoading) {
     return (
       <motion.div
@@ -29,17 +28,15 @@ export function ReleaseBadge() {
     );
   }
 
-  // No release data
   if (!release) return null;
 
-  // Extract release name
   const releaseName = release.name.split("—").pop()?.trim() || release.name;
 
   return (
     <AnimatePresence mode="wait">
       <motion.a
-        key={version}
-        href={releaseUrl || release.html_url}
+        key={release.version}
+        href={release.url}
         target="_blank"
         rel="noopener noreferrer"
         initial={{ opacity: 0, y: 12, filter: "blur(4px)", scale: 0.9 }}
@@ -57,7 +54,6 @@ export function ReleaseBadge() {
         whileTap={{ scale: 0.98 }}
         className="group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-full bg-white/90 backdrop-blur-xl border border-black/[0.08] shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)] transition-shadow duration-300 cursor-pointer"
       >
-        {/* Gradient overlay on hover */}
         <motion.div
           initial={false}
           animate={{ opacity: 0 }}
@@ -68,7 +64,6 @@ export function ReleaseBadge() {
           }}
         />
 
-        {/* Live indicator with glow - Using #b7cf8a */}
         <div className="relative flex items-center justify-center">
           <motion.span
             animate={{
@@ -96,7 +91,6 @@ export function ReleaseBadge() {
           />
         </div>
 
-        {/* Release name */}
         <motion.span
           initial={{ opacity: 0, x: -5 }}
           animate={{ opacity: 1, x: 0 }}
@@ -106,7 +100,6 @@ export function ReleaseBadge() {
           {releaseName}
         </motion.span>
 
-        {/* Divider */}
         <motion.div
           initial={{ scaleY: 0 }}
           animate={{ scaleY: 1 }}
@@ -114,7 +107,6 @@ export function ReleaseBadge() {
           className="w-px h-4 bg-black/[0.08]"
         />
 
-        {/* Version badge */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -137,12 +129,11 @@ export function ReleaseBadge() {
             className="px-2.5 py-0.5 rounded-full bg-black/[0.04] border border-black/[0.06] group-hover:bg-black/[0.06] transition-colors"
           >
             <span className="text-xs font-mono font-medium text-black/50 group-hover:text-black/70 transition-colors tracking-tight">
-              {version}
+              {release.version}
             </span>
           </motion.span>
         </motion.div>
 
-        {/* External link icon */}
         <motion.div
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -153,7 +144,6 @@ export function ReleaseBadge() {
           <ExternalLink className="h-3.5 w-3.5" />
         </motion.div>
 
-        {/* Hover glow effect */}
         <motion.div
           initial={false}
           animate={{ opacity: 0 }}

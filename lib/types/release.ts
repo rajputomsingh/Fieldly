@@ -1,8 +1,8 @@
 // lib/types/release.ts
-export interface GitHubRelease {
-  tag_name: string;
+export interface ReleaseResponse {
+  version: string;
   name: string;
-  published_at: string;
-  html_url: string;
+  url: string;
+  publishedAt: string;
   prerelease: boolean;
 }
