@@ -1,66 +1,71 @@
     // hooks/useRelease.ts
-    import { useState, useEffect } from 'react';
-    import type { GitHubRelease } from '@/lib/types/release';
+"use client";
 
-    const FALLBACK_RELEASE: GitHubRelease = {
-    tag_name: 'v0.6.0-beta',
-    name: 'Fieldly v0.6.0-beta — Catalyst',
-    published_at: '2026-06-22T00:00:00Z',
-    html_url: 'https://github.com/rajputomsingh/Fieldly/releases',
-    prerelease: true,
-    };
+import { useEffect, useState } from "react";
+import type { ReleaseResponse } from "@/lib/types/release";
 
-    export function     useRelease() {
-    const [release, setRelease] = useState<GitHubRelease | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<Error | null>(null);
+const FALLBACK_RELEASE: ReleaseResponse = {
+  version: "v0.6.0-beta",
+  name: "Fieldly v0.6.0-beta — Catalyst",
+  url: "https://github.com/rajputomsingh/Fieldly/releases",
+  publishedAt: "2026-06-22T00:00:00Z",
+  prerelease: true,
+};
 
-    useEffect(() => {
-        let mounted = true;
+export function useRelease() {
+  const [release, setRelease] = useState<ReleaseResponse>(FALLBACK_RELEASE);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
-        async function fetchRelease() {
-        try {
-            console.log('🔄 Fetching release...');
-            const res = await fetch('/api/release');
-            
-            if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-            
-            const data: GitHubRelease = await res.json();
-            console.log('✅ Release data:', data);
-            
-            if (mounted) {
-            setRelease(data);
-            setError(null);
-            }
-        } catch (err) {
-            console.error('❌ Error fetching release:', err);
-            if (mounted) {
-            setError(err as Error);
-            setRelease(FALLBACK_RELEASE);
-            }
-        } finally {
-            if (mounted) {
-            setIsLoading(false);
-            }
-        }
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchRelease() {
+      try {
+        setIsError(false);
+
+        const res = await fetch("/api/release", {
+          signal: controller.signal,
+          headers: {
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error();
         }
 
-        fetchRelease();
-        
-        // Refetch every 5 minutes in development to catch changes
-        const interval = setInterval(fetchRelease, 300000);
+        const data: ReleaseResponse = await res.json();
+        setRelease(data);
+      } catch (error) {
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
 
-        return () => {
-        mounted = false;
-        clearInterval(interval);
-        };
-    }, []);
-
-    return {
-        release,
-        isLoading,
-        isError: error,
-        version: release?.tag_name || FALLBACK_RELEASE.tag_name,
-        releaseUrl: release?.html_url || FALLBACK_RELEASE.html_url,
-    };
+        setIsError(true);
+        setRelease(FALLBACK_RELEASE);
+      } finally {
+        setIsLoading(false);
+      }
     }
+
+    fetchRelease();
+
+    const interval = setInterval(fetchRelease, 30 * 60 * 1000);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
+  }, []);
+
+  return {
+    release,
+    isLoading,
+    isError,
+  };
+}
