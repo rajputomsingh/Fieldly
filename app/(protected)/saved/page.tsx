@@ -6,12 +6,11 @@ import { useUser } from "@clerk/nextjs";
 import { Bookmark, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { ListingCard } from "@/app/marketplace/_components/ListingCard";
-import { MarketplaceFeedItem } from "@/types/marketplace";
+import type { MarketplaceFeedItemDTO } from "@/lib/marketplace/types";
 
 interface SavedListingItem {
   listingId: string;
-  listing: MarketplaceFeedItem;
-  createdAt: string;
+  listing: MarketplaceFeedItemDTO;
 }
 
 export default function SavedListingsPage() {

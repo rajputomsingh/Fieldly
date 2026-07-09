@@ -15,14 +15,14 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
-import { MarketplaceFilters } from '@/types/marketplace'
+import type { FeedFilters } from '@/lib/marketplace/validation';
 import { LAND_TYPES } from '@/lib/constants'
 import { X } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 
 export interface ListingFiltersProps {
-  filters: MarketplaceFilters
-  onChange: (filters: MarketplaceFilters) => void
+  filters: FeedFilters
+  onChange: (filters: FeedFilters) => void
 }
 
 export function ListingFilters({ filters, onChange }: ListingFiltersProps) {
@@ -37,12 +37,11 @@ export function ListingFilters({ filters, onChange }: ListingFiltersProps) {
   ])
 
   // FIXED: Handle null values properly
-  const handleChange = (key: keyof MarketplaceFilters, value: string | number | boolean | null | undefined) => {
+  const handleChange = (key: keyof FeedFilters, value: string | number | boolean | null | undefined) => {
     onChange({ ...filters, [key]: value })
   }
 
-  const clearFilters = () => {
-    onChange({})
+  const clearFilters = () => { onChange({ sortBy: filters.sortBy || "hotnessScore" })
     setPriceRange([0, 1000000])
     setSizeRange([0, 1000])
   }

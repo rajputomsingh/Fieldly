@@ -25,14 +25,14 @@ import { Separator } from "@/components/ui/separator";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { SORT_OPTIONS, LAND_TYPES } from "@/lib/constants";
 import { formatNumber } from "@/lib/utils";
-import { MarketplaceFilters } from "@/types/marketplace";
+import type { FeedFilters } from '@/lib/marketplace/validation';
 
 // ============================================================
 // TYPES
 // ============================================================
 interface ListingFiltersSidebarProps {
-  filters: MarketplaceFilters;
-  onChange: (filters: MarketplaceFilters) => void;
+  filters: FeedFilters;
+  onChange: (filters: FeedFilters) => void;
   mobileOpen?: boolean;
   onMobileOpenChange?: (open: boolean) => void;
   variant?: "desktop" | "mobile";
@@ -42,8 +42,8 @@ interface ListingFiltersSidebarProps {
 // FILTER CONTENT (Shared between desktop and mobile)
 // ============================================================
 interface FilterContentProps {
-  filters: MarketplaceFilters;
-  onChange: (filters: MarketplaceFilters) => void;
+  filters: FeedFilters;
+  onChange: (filters: FeedFilters) => void;
 }
 
 function FilterContent({ filters, onChange }: FilterContentProps) {
@@ -57,12 +57,11 @@ function FilterContent({ filters, onChange }: FilterContentProps) {
     filters.maxSize || 1000,
   ]);
 
-  const handleChange = (key: keyof MarketplaceFilters, value: string | number | boolean | null | undefined) => {
+  const handleChange = (key: keyof FeedFilters, value: string | number | boolean | null | undefined) => {
     onChange({ ...filters, [key]: value });
   };
 
-  const clearFilters = () => {
-    onChange({ sortBy: filters.sortBy });
+  const clearFilters = () => { onChange({ sortBy: filters.sortBy || "hotnessScore" });
     setPriceRange([0, 1000000]);
     setSizeRange([0, 1000]);
   };
@@ -320,8 +319,8 @@ export function ListingFiltersSidebar({
 // ACTIVE FILTERS BADGES COMPONENT
 // ============================================================
 interface ActiveFiltersProps {
-  filters: MarketplaceFilters;
-  onRemoveFilter: (key: keyof MarketplaceFilters) => void;
+  filters: FeedFilters;
+  onRemoveFilter: (key: keyof FeedFilters) => void;
   onClearAll: () => void;
   formatNumber: (value: number) => string;
 }
@@ -434,8 +433,8 @@ export function ActiveFilters({ filters, onRemoveFilter, onClearAll, formatNumbe
 // HEADER COMPONENT (Search + Sort) - WITH HYDRATION FIX
 // ============================================================
 interface MarketplaceHeaderProps {
-  filters: MarketplaceFilters;
-  onFiltersChange: (filters: MarketplaceFilters) => void;
+  filters: FeedFilters;
+  onFiltersChange: (filters: FeedFilters) => void;
   mobileFiltersOpen: boolean;
   onMobileFiltersOpenChange: (open: boolean) => void;
 }
@@ -450,7 +449,7 @@ export function MarketplaceHeader({
   const [mounted] = useState(() => typeof window !== "undefined");
 
   const handleSortChange = (value: string) => {
-    onFiltersChange({ ...filters, sortBy: value as MarketplaceFilters["sortBy"] });
+    onFiltersChange({ ...filters, sortBy: value as FeedFilters["sortBy"] });
   };
 
   // Return skeleton during SSR to prevent hydration mismatch

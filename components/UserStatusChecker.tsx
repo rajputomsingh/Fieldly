@@ -17,25 +17,26 @@ export default function UserStatusChecker() {
           });
 
           if (response.ok) {
-            const data = await response.json();
+            const result = await response.json();
+            const data = result.data;
 
             if (data?.user) {
               if (!data.user.role) {
-                router.replace("/onboarding/role"); 
+                router.replace("/onboarding/role");
               } else if (!data.user.isOnboarded) {
                 const onboardingPath =
                   data.user.role === "FARMER"
                     ? "/onboarding/farmer"
                     : "/onboarding/landowner";
 
-                router.replace(onboardingPath); 
+                router.replace(onboardingPath);
               } else {
                 const dashboardPath =
                   data.user.role === "FARMER"
                     ? "/farmer/dashboard"
                     : "/landowner/dashboard";
 
-                router.replace(dashboardPath); 
+                router.replace(dashboardPath);
               }
             }
           }

@@ -1,2 +1,2 @@
 // types/index.ts
-export * from './marketplace'
+// Marketplace types moved to @/lib/marketplace/types

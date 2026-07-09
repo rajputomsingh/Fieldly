@@ -1,193 +1,117 @@
-    // app/api/marketplace/saved/route.ts
-    import { NextRequest, NextResponse } from "next/server";
-    import { prisma } from "@/lib/prisma";
-    import { getCurrentUser } from "@/lib/server/admin-guard";
+// app/api/marketplace/saved/route.ts
+import { NextRequest } from 'next/server';
+import { marketplaceService } from '@/lib/marketplace/service';
+import { SavedListingSchema } from '@/lib/marketplace/validation';
+import { responses } from '@/lib/marketplace/responses';
+import { logger } from '@/lib/marketplace/logger';
+import { getCurrentUser } from '@/lib/server/admin-guard';
 
-    // Type for Prisma error with code
-    interface PrismaError {
-    code?: string;
-    message?: string;
+/**
+ * GET /api/marketplace/saved
+ * Get all saved listings for the current user
+ */
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return responses.unauthorized('Please sign in to view saved listings');
     }
 
-    // GET /api/marketplace/saved - Get all saved listings for current user
-    export async function GET() {
-    try {
-        const user = await getCurrentUser();
-        
-        if (!user) {
-        return NextResponse.json(
-            { error: "Unauthorized. Please sign in." },
-            { status: 401 }
-        );
-        }
+    const result = await marketplaceService.getSavedListings(user.id);
+    return responses.success(result);
+  } catch (error) {
+    logger.error('Failed to fetch saved listings', error as Error);
+    return responses.serverError('Failed to fetch saved listings');
+  }
+}
 
-        const savedListings = await prisma.savedListing.findMany({
-        where: { userId: user.id },
-        include: {
-            listing: {
-            include: {
-                land: {
-                select: {
-                    size: true,
-                    landType: true,
-                    village: true,
-                    district: true,
-                    state: true,
-                },
-                },
-                images: {
-                where: { isPrimary: true },
-                take: 1,
-                },
-                _count: {
-                select: {
-                    bids: true,
-                },
-                },
-            },
-            },
-        },
-        orderBy: {
-            createdAt: "desc",
-        },
-        });
-
-        return NextResponse.json({
-        saved: savedListings,
-        count: savedListings.length,
-        });
-    } catch (error) {
-        console.error("[Saved API] GET error:", error);
-        return NextResponse.json(
-        { error: "Failed to fetch saved listings" },
-        { status: 500 }
-        );
-    }
+/**
+ * POST /api/marketplace/saved
+ * Save a listing for the current user
+ * Body: { listingId: string }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return responses.unauthorized('Please sign in to save listings');
     }
 
-    // POST /api/marketplace/saved - Save a listing
-    export async function POST(req: NextRequest) {
-    try {
-        const user = await getCurrentUser();
-        
-        if (!user) {
-        return NextResponse.json(
-            { error: "Unauthorized. Please sign in." },
-            { status: 401 }
-        );
-        }
-
-        const body = await req.json();
-        const { listingId } = body;
-
-        if (!listingId) {
-        return NextResponse.json(
-            { error: "Listing ID is required" },
-            { status: 400 }
-        );
-        }
-
-        // Check if listing exists
-        const listing = await prisma.landListing.findUnique({
-        where: { id: listingId },
-        select: { id: true },
-        });
-
-        if (!listing) {
-        return NextResponse.json(
-            { error: "Listing not found" },
-            { status: 404 }
-        );
-        }
-
-        // Try to create saved listing
-        try {
-        const saved = await prisma.savedListing.create({
-            data: {
-            listingId,
-            userId: user.id,
-            },
-        });
-
-        return NextResponse.json({
-            success: true,
-            saved,
-            message: "Listing saved successfully",
-        });
-        } catch (error) {
-        const prismaError = error as PrismaError;
-        // P2002 is Prisma's "unique constraint violation" error
-        if (prismaError.code === "P2002") {
-            // Already saved - this is fine, return success
-            return NextResponse.json({
-            success: true,
-            message: "Listing already saved",
-            });
-        }
-        throw error;
-        }
-    } catch (error) {
-        console.error("[Saved API] POST error:", error);
-        return NextResponse.json(
-        { error: "Failed to save listing" },
-        { status: 500 }
-        );
-    }
+    const body = await req.json();
+    const validation = SavedListingSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return responses.badRequest(
+        'Invalid request body',
+        validation.error.issues
+      );
     }
 
-    // DELETE /api/marketplace/saved - Remove a saved listing
-    export async function DELETE(req: NextRequest) {
-    try {
-        const user = await getCurrentUser();
-        
-        if (!user) {
-        return NextResponse.json(
-            { error: "Unauthorized. Please sign in." },
-            { status: 401 }
-        );
-        }
+    const result = await marketplaceService.saveListing(
+      user.id, 
+      validation.data.listingId
+    );
 
-        const body = await req.json();
-        const { listingId } = body;
-
-        if (!listingId) {
-        return NextResponse.json(
-            { error: "Listing ID is required" },
-            { status: 400 }
-        );
-        }
-
-        try {
-        await prisma.savedListing.delete({
-            where: {
-            listingId_userId: {
-                listingId,
-                userId: user.id,
-            },
-            },
-        });
-
-        return NextResponse.json({
-            success: true,
-            message: "Listing removed from saved",
-        });
-        } catch (error) {
-        const prismaError = error as PrismaError;
-        // P2025 is Prisma's "record not found" error
-        if (prismaError.code === "P2025") {
-            return NextResponse.json({
-            success: true,
-            message: "Listing was not saved",
-            });
-        }
-        throw error;
-        }
-    } catch (error) {
-        console.error("[Saved API] DELETE error:", error);
-        return NextResponse.json(
-        { error: "Failed to remove saved listing" },
-        { status: 500 }
-        );
+    return responses.success(result);
+  } catch (error) {
+    const err = error as Error;
+    logger.error('Failed to save listing', err);
+    
+    // Handle specific known errors
+    if (err.message === 'Listing not found') {
+      return responses.notFound('Listing not found');
     }
+    
+    return responses.serverError('Failed to save listing');
+  }
+}
+
+/**
+ * DELETE /api/marketplace/saved
+ * Remove a saved listing for the current user
+ * Body: { listingId: string }
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return responses.unauthorized('Please sign in to manage saved listings');
     }
 
+    const body = await req.json();
+    const validation = SavedListingSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return responses.badRequest(
+        'Invalid request body',
+        validation.error.issues
+      );
+    }
+
+    const result = await marketplaceService.unsaveListing(
+      user.id, 
+      validation.data.listingId
+    );
+
+    return responses.success(result);
+  } catch (error) {
+    logger.error('Failed to remove saved listing', error as Error);
+    return responses.serverError('Failed to remove saved listing');
+  }
+}
+
+/**
+ * OPTIONS /api/marketplace/saved
+ * CORS preflight
+ */
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Allow': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
