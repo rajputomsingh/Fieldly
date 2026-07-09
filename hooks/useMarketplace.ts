@@ -1,27 +1,28 @@
 // hooks/useMarketplace.ts
 import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from './useDebounce'
-import { MarketplaceFilters, MarketplaceFeedItem } from '@/types/marketplace'
+import type { FeedFilters } from '@/lib/marketplace/validation'
+import type { MarketplaceFeedItemDTO } from '@/lib/marketplace/types'
 
 interface UseMarketplaceReturn {
-  listings: MarketplaceFeedItem[]
+  listings: MarketplaceFeedItemDTO[]
   loading: boolean
   error: string | null
   hasMore: boolean
-  filters: MarketplaceFilters
-  setFilters: (filters: MarketplaceFilters) => void
+  filters: FeedFilters
+  setFilters: (filters: FeedFilters) => void
   loadMore: () => Promise<void>
   toggleSave: (listingId: string) => Promise<void>
   savedListings: Set<string>
 }
 
-export function useMarketplace(initialFilters: MarketplaceFilters = {}): UseMarketplaceReturn {
-  const [listings, setListings] = useState<MarketplaceFeedItem[]>([])
+export function useMarketplace(initialFilters: FeedFilters = { sortBy: 'hotnessScore' }): UseMarketplaceReturn {
+  const [listings, setListings] = useState<MarketplaceFeedItemDTO[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
-  const [filters, setFilters] = useState<MarketplaceFilters>(initialFilters)
+  const [filters, setFilters] = useState<FeedFilters>(initialFilters)
   const [savedListings, setSavedListings] = useState<Set<string>>(new Set())
   
   const debouncedFilters = useDebounce(filters, 500)
@@ -53,7 +54,7 @@ export function useMarketplace(initialFilters: MarketplaceFilters = {}): UseMark
         throw new Error('Failed to fetch listings')
       }
 
-      const data = await response.json()
+      const result = await response.json(); const data = result.data || result
       
       // FIX: Deduplicate listings by ID when appending
       setListings(prev => {
@@ -70,7 +71,7 @@ export function useMarketplace(initialFilters: MarketplaceFilters = {}): UseMark
         })
         
         // Add new listings (will overwrite any duplicates)
-        data.listings.forEach((listing: MarketplaceFeedItem) => {
+        data.listings.forEach((listing: MarketplaceFeedItemDTO) => {
           listingMap.set(listing.id, listing)
         })
         

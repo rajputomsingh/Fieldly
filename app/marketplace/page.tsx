@@ -12,7 +12,7 @@ import { ListingCardGridSkeleton } from "./_components/ListingCardSkeleton";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
-import { MarketplaceFilters } from "@/types/marketplace";
+import type { FeedFilters } from "@/lib/marketplace/validation";
 
 function MarketplacePageSkeleton() {
   return (
@@ -85,10 +85,10 @@ export default function MarketplacePage() {
     setFilters({ sortBy: filters.sortBy });
   };
 
-  const removeFilter = (key: keyof MarketplaceFilters) => {
+  const removeFilter = (key: string) => {
     const newFilters = { ...filters };
-    delete newFilters[key];
-    setFilters(newFilters);
+    delete (newFilters as Record<string, unknown>)[key];
+    setFilters(newFilters as FeedFilters);
   };
 
   if (!isClient) {
@@ -110,7 +110,10 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="space-y-6 mt-18 px-4 sm:px-6 lg:px-8" suppressHydrationWarning>
+    <div
+      className="space-y-6 mt-18 px-4 sm:px-6 lg:px-8"
+      suppressHydrationWarning
+    >
       <MarketplaceHeader
         filters={filters}
         onFiltersChange={setFilters}
