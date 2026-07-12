@@ -106,7 +106,7 @@ export function useMarketplace(initialFilters: FeedFilters = { sortBy: 'hotnessS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingId }),
       })
-
+ 
       if (!response.ok) throw new Error('Failed to toggle save')
 
       setSavedListings(prev => {
