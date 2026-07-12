@@ -98,9 +98,9 @@ Fieldly provides a comprehensive ecosystem that transforms agricultural land man
 - Rate limiting with Upstash Redis
 - Type-safe database operations with Prisma ORM
 
-  <p align="center">
+<p align="center">
   <img
-    src="https://github.com/user-attachments/assets/395c65fb-a63e-4da6-9981-b5df9f564fcb"
+    src="/public/architecture.png"
     alt="Fieldly High-Level Architecture"
     width="100%"
   />
