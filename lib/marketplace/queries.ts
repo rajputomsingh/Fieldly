@@ -11,16 +11,8 @@ export const queries = {
    */
   buildFeedQuery(filters: FeedFilters, pagination: PaginationParams): Prisma.LandListingFindManyArgs {
     const {
-      search,
-      minPrice,
-      maxPrice,
-      landType,
-      state,
-      district,
-      minSize,
-      maxSize,
-      irrigation,
-      verifiedOnly,
+      search, minPrice, maxPrice, landType, state, district,
+      minSize, maxSize, irrigation, verifiedOnly,
       sortBy = 'hotnessScore',
     } = filters;
 
@@ -71,20 +63,13 @@ export const queries = {
 
     const orderBy: Prisma.LandListingOrderByWithRelationInput[] = (() => {
       switch (sortBy) {
-        case 'hotnessScore':
-          return [{ hotnessScore: 'desc' }, { engagementScore: 'desc' }, { createdAt: 'desc' }];
-        case 'newest':
-          return [{ createdAt: 'desc' }];
-        case 'endingSoon':
-          return [{ endDate: 'asc' }];
-        case 'priceLowToHigh':
-          return [{ basePrice: 'asc' }];
-        case 'priceHighToLow':
-          return [{ basePrice: 'desc' }];
-        case 'mostBids':
-          return [{ totalBids: 'desc' }];
-        default:
-          return [{ hotnessScore: 'desc' }];
+        case 'hotnessScore': return [{ hotnessScore: 'desc' }, { engagementScore: 'desc' }, { createdAt: 'desc' }];
+        case 'newest': return [{ createdAt: 'desc' }];
+        case 'endingSoon': return [{ endDate: 'asc' }];
+        case 'priceLowToHigh': return [{ basePrice: 'asc' }];
+        case 'priceHighToLow': return [{ basePrice: 'desc' }];
+        case 'mostBids': return [{ totalBids: 'desc' }];
+        default: return [{ hotnessScore: 'desc' }];
       }
     })();
 
@@ -94,167 +79,130 @@ export const queries = {
       skip,
       take: Math.min(limit, MARKETPLACE_CONSTANTS.PAGINATION.MAX_LIMIT),
       select: {
-        id: true,
-        title: true,
-        description: true,
-        basePrice: true,
-        highestBid: true,
-        endDate: true,
-        startDate: true,
-        auctionStatus: true,
-        minimumLeaseDuration: true,
-        maximumLeaseDuration: true,
-        createdAt: true,
-        updatedAt: true,
-        publishedAt: true,
-        lastBidAt: true,
-        viewCount: true,
-        totalBids: true,
-        hotnessScore: true,
-        engagementScore: true,
+        id: true, title: true, description: true,
+        basePrice: true, highestBid: true,
+        endDate: true, startDate: true, auctionStatus: true,
+        minimumLeaseDuration: true, maximumLeaseDuration: true,
+        createdAt: true, updatedAt: true, publishedAt: true, lastBidAt: true,
+        viewCount: true, totalBids: true,
+        hotnessScore: true, engagementScore: true,
         land: {
           select: {
-            id: true,
-            size: true,
-            landType: true,
-            district: true,
-            state: true,
-            village: true,
-            latitude: true,
-            longitude: true,
-            soilType: true,
-            irrigationAvailable: true,
-            electricityAvailable: true,
-            roadAccess: true,
-            fencingAvailable: true,
-            waterSource: true,
+            id: true, size: true, landType: true,
+            district: true, state: true, village: true,
+            latitude: true, longitude: true,
+            soilType: true, irrigationAvailable: true,
+            electricityAvailable: true, roadAccess: true,
+            fencingAvailable: true, waterSource: true,
             images: {
               take: MARKETPLACE_CONSTANTS.LISTING.FEED_IMAGES,
-              select: {
-                id: true,
-                url: true,
-                caption: true,
-                isPrimary: true,
-              },
+              select: { id: true, url: true, caption: true, isPrimary: true },
             },
           },
         },
         owner: {
           select: {
-            id: true,
-            name: true,
-            imageUrl: true,
-            landownerProfile: {
-              select: {
-                isVerified: true,
-                verificationLevel: true,
-              },
-            },
+            id: true, name: true, imageUrl: true,
+            landownerProfile: { select: { isVerified: true, verificationLevel: true } },
           },
         },
         images: {
           take: MARKETPLACE_CONSTANTS.LISTING.FEED_IMAGES,
           orderBy: { sortOrder: 'asc' },
-          select: {
-            id: true,
-            url: true,
-            caption: true,
-            isPrimary: true,
-          },
+          select: { id: true, url: true, caption: true, isPrimary: true },
         },
-        _count: {
-          select: {
-            bids: true,
-            savedBy: true,
-          },
-        },
+        _count: { select: { bids: true, savedBy: true } },
       },
     };
   },
 
-  /**
-   * Listing detail query builder
-   */
+  // ============================================================
+  // PHASE 2: OPTIMIZED Listing detail - include → select
+  // ============================================================
   buildListingDetailQuery(listingId: string, userId?: string): Prisma.LandListingFindUniqueArgs {
     return {
       where: { id: listingId },
-      include: {
+      select: {
+        // Core listing fields
+        id: true, title: true, description: true,
+        basePrice: true, highestBid: true,
+        endDate: true, startDate: true, auctionStatus: true,
+        minimumLeaseDuration: true, maximumLeaseDuration: true,
+        createdAt: true, updatedAt: true, publishedAt: true, lastBidAt: true,
+        viewCount: true, totalBids: true,
+        hotnessScore: true, engagementScore: true,
+
+        // Land - essential fields only
         land: {
-          include: {
+          select: {
+            id: true, size: true, landType: true,
+            title: true, description: true,
+            district: true, state: true, village: true,
+            latitude: true, longitude: true, pincode: true, address: true,
+            soilType: true, irrigationAvailable: true,
+            electricityAvailable: true, roadAccess: true,
+            fencingAvailable: true, waterSource: true,
+            images: {
+              take: MARKETPLACE_CONSTANTS.LISTING.MAX_IMAGES,
+              select: { id: true, url: true, caption: true, isPrimary: true },
+            },
+            documents: {
+              select: { id: true, name: true, url: true, type: true, size: true, createdAt: true },
+            },
             soilReports: {
               orderBy: { testedAt: 'desc' },
               take: 1,
             },
-            documents: {
-              select: {
-                id: true,
-                name: true,
-                url: true,
-                type: true,
-                size: true,
-                createdAt: true,
-              },
-            },
-            images: {
-              take: MARKETPLACE_CONSTANTS.LISTING.MAX_IMAGES,
-              select: {
-                id: true,
-                url: true,
-                caption: true,
-                isPrimary: true,
-              },
-            },
           },
         },
+
+        // Owner - essential only
         owner: {
-          include: {
-            landownerProfile: true,
+          select: {
+            id: true, name: true, imageUrl: true,
+            landownerProfile: { select: { isVerified: true, verificationLevel: true } },
           },
         },
-        terms: true,
-        analytics: true,
+
+        // Terms - only needed fields
+        terms: {
+          select: {
+            id: true, listingId: true,
+            securityDepositRequired: true, depositAmount: true,
+            paymentFrequency: true, additionalTerms: true,
+          },
+        },
+
+        // Analytics - only needed fields
+        analytics: {
+          select: {
+            listingId: true, demandScore: true, bidVelocity: true,
+            conversionScore: true, watchers: true, lastActivityAt: true,
+          },
+        },
+
+        // Listing images
         images: {
           orderBy: { sortOrder: 'asc' },
-          select: {
-            id: true,
-            url: true,
-            caption: true,
-            isPrimary: true,
-            sortOrder: true,
-          },
+          select: { id: true, url: true, caption: true, isPrimary: true, sortOrder: true },
         },
-        _count: {
-          select: {
-            bids: true,
-            savedBy: true,
-            applications: true,
-          },
-        },
+
+        // Recent bids only
         bids: {
           where: { status: 'ACTIVE' },
           orderBy: { createdAt: 'desc' },
           take: MARKETPLACE_CONSTANTS.BID.RECENT_BIDS_LIMIT,
           select: {
-            id: true,
-            amount: true,
-            farmerId: true,
-            createdAt: true,
-            isAutoBid: true,
-            farmer: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true,
-              },
-            },
+            id: true, amount: true, farmerId: true, createdAt: true, isAutoBid: true,
+            farmer: { select: { id: true, name: true, imageUrl: true } },
           },
         },
-        ...(userId && {
-          savedBy: {
-            where: { userId },
-            select: { id: true },
-          },
-        }),
+
+        // Counts
+        _count: { select: { bids: true, savedBy: true, applications: true } },
+
+        // Saved status
+        ...(userId && { savedBy: { where: { userId }, select: { id: true } } }),
       },
     };
   },
@@ -266,30 +214,17 @@ export const queries = {
     return {
       where: { id: listingId },
       select: {
-        id: true,
-        title: true,
-        description: true,
-        basePrice: true,
-        reservePrice: true,
-        bidIncrement: true,
-        endDate: true,
-        startDate: true,
-        auctionStatus: true,
-        autoExtendMinutes: true,
-        winningBidId: true,
-        currentLeaderId: true,
-        highestBid: true,
-        status: true,
-        listingType: true,
+        id: true, title: true, description: true,
+        basePrice: true, reservePrice: true, bidIncrement: true,
+        endDate: true, startDate: true, auctionStatus: true,
+        autoExtendMinutes: true, winningBidId: true,
+        currentLeaderId: true, highestBid: true,
+        status: true, listingType: true,
         land: {
           select: {
-            latitude: true,
-            longitude: true,
-            village: true,
-            district: true,
-            state: true,
-            size: true,
-            landType: true,
+            latitude: true, longitude: true,
+            village: true, district: true, state: true,
+            size: true, landType: true,
             images: {
               take: MARKETPLACE_CONSTANTS.LISTING.PRIMARY_IMAGE_ONLY,
               select: { url: true },
@@ -301,39 +236,17 @@ export const queries = {
           orderBy: [{ amount: 'desc' }, { createdAt: 'asc' }],
           take: MARKETPLACE_CONSTANTS.BID.MAX_BIDS_PER_PAGE,
           select: {
-            id: true,
-            amount: true,
-            farmerId: true,
-            createdAt: true,
-            isAutoBid: true,
-            farmer: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true,
-              },
-            },
+            id: true, amount: true, farmerId: true, createdAt: true, isAutoBid: true,
+            farmer: { select: { id: true, name: true, imageUrl: true } },
           },
         },
         winningBid: {
           select: {
-            id: true,
-            amount: true,
-            farmer: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+            id: true, amount: true,
+            farmer: { select: { id: true, name: true } },
           },
         },
-        _count: {
-          select: {
-            bids: {
-              where: { status: 'ACTIVE' },
-            },
-          },
-        },
+        _count: { select: { bids: { where: { status: 'ACTIVE' } } } },
       },
     };
   },
@@ -347,29 +260,11 @@ export const queries = {
       include: {
         listing: {
           select: {
-            id: true,
-            title: true,
-            basePrice: true,
-            highestBid: true,
-            endDate: true,
-            auctionStatus: true,
-            land: {
-              select: {
-                size: true,
-                landType: true,
-                village: true,
-                district: true,
-                state: true,
-              },
-            },
-            images: {
-              where: { isPrimary: true },
-              take: 1,
-              select: { url: true },
-            },
-            _count: {
-              select: { bids: true },
-            },
+            id: true, title: true, basePrice: true, highestBid: true,
+            endDate: true, auctionStatus: true,
+            land: { select: { size: true, landType: true, village: true, district: true, state: true } },
+            images: { where: { isPrimary: true }, take: 1, select: { url: true } },
+            _count: { select: { bids: true } },
           },
         },
       },
@@ -382,12 +277,10 @@ export const queries = {
 export const db = {
   async getFeed(filters: FeedFilters, pagination: PaginationParams) {
     const query = queries.buildFeedQuery(filters, pagination);
-    
     const [listings, totalCount] = await prisma.$transaction([
       prisma.landListing.findMany(query),
       prisma.landListing.count({ where: query.where }),
     ]);
-
     return { listings, totalCount };
   },
 
@@ -406,32 +299,19 @@ export const db = {
     return prisma.savedListing.findMany(query);
   },
 
-  async getBidHistory(listingId: string, limit: number = 20) {
+  async getBidHistory(listingId: string, limit = 20) {
     return prisma.bid.findMany({
-      where: { 
-        listingId, 
-        status: 'ACTIVE',
-      },
+      where: { listingId, status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
-        id: true,
-        amount: true,
-        farmerId: true,
-        createdAt: true,
-        isAutoBid: true,
-        farmer: {
-          select: {
-            id: true,
-            name: true,
-            imageUrl: true,
-          },
-        },
+        id: true, amount: true, farmerId: true, createdAt: true, isAutoBid: true,
+        farmer: { select: { id: true, name: true, imageUrl: true } },
       },
     });
   },
 
-  async getRecommendations(userId: string, limit: number = 10) {
+  async getRecommendations(userId: string, limit = 10) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { farmerProfile: true },
@@ -456,95 +336,37 @@ export const db = {
     return prisma.landListing.findMany({
       where,
       take: limit,
-      orderBy: [
-        { hotnessScore: 'desc' },
-        { engagementScore: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ hotnessScore: 'desc' }, { engagementScore: 'desc' }, { createdAt: 'desc' }],
       select: {
-        id: true,
-        title: true,
-        basePrice: true,
-        highestBid: true,
-        endDate: true,
-        auctionStatus: true,
-        hotnessScore: true,
-        engagementScore: true,
-        land: {
-          select: {
-            size: true,
-            landType: true,
-            district: true,
-            state: true,
-            village: true,
-            images: {
-              take: 1,
-              select: { url: true },
-            },
-          },
-        },
+        id: true, title: true, basePrice: true, highestBid: true,
+        endDate: true, auctionStatus: true, hotnessScore: true, engagementScore: true,
+        land: { select: { size: true, landType: true, district: true, state: true, village: true, images: { take: 1, select: { url: true } } } },
         _count: { select: { bids: true } },
       },
     });
   },
 
-  async getTrending(limit: number = 10) {
+  async getTrending(limit = 10) {
     return prisma.landListing.findMany({
-      where: {
-        status: 'ACTIVE',
-        auctionStatus: { in: ['UPCOMING', 'LIVE'] },
-        endDate: { gt: new Date() },
-      },
+      where: { status: 'ACTIVE', auctionStatus: { in: ['UPCOMING', 'LIVE'] }, endDate: { gt: new Date() } },
       take: limit,
-      orderBy: [
-        { engagementScore: 'desc' },
-        { hotnessScore: 'desc' },
-        { viewCount: 'desc' },
-        { totalBids: 'desc' },
-      ],
+      orderBy: [{ engagementScore: 'desc' }, { hotnessScore: 'desc' }, { viewCount: 'desc' }, { totalBids: 'desc' }],
       select: {
-        id: true,
-        title: true,
-        basePrice: true,
-        highestBid: true,
-        endDate: true,
-        auctionStatus: true,
-        viewCount: true,
-        totalBids: true,
-        land: {
-          select: {
-            size: true,
-            landType: true,
-            district: true,
-            state: true,
-            village: true,
-            images: {
-              take: 1,
-              select: { url: true },
-            },
-          },
-        },
+        id: true, title: true, basePrice: true, highestBid: true,
+        endDate: true, auctionStatus: true, viewCount: true, totalBids: true,
+        land: { select: { size: true, landType: true, district: true, state: true, village: true, images: { take: 1, select: { url: true } } } },
         _count: { select: { bids: true } },
       },
     });
   },
 
   async checkUserBid(userId: string, listingId: string) {
-    return prisma.bid.findFirst({
-      where: {
-        farmerId: userId,
-        listingId,
-        status: 'ACTIVE',
-      },
-    });
+    return prisma.bid.findFirst({ where: { farmerId: userId, listingId, status: 'ACTIVE' } });
   },
 
   async trackView(listingId: string): Promise<void> {
     await prisma.$transaction([
-      prisma.landListing.update({
-        where: { id: listingId },
-        data: { viewCount: { increment: 1 } },
-      }),
+      prisma.landListing.update({ where: { id: listingId }, data: { viewCount: { increment: 1 } } }),
       prisma.listingAnalytics.upsert({
         where: { listingId },
         update: { lastActivityAt: new Date() },
