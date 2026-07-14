@@ -59,13 +59,14 @@ export function useAuction(listingId: string): UseAuctionReturn {
 
   const fetchAuctionData = useCallback(async () => {
     try {
-      const response = await fetch("/api/marketplace/" + listingId);
+      const response = await fetch("/api/marketplace/" + listingId + "/auction");
       if (!response.ok) throw new Error("Failed to fetch auction");
       const result = await response.json();
       const data = result.data || result;
+      const auctionData = data.listing || data;
       setAuction(data);
-      setBids(data.bids || []);
-      const endTime = new Date(data.endDate).getTime();
+      setBids(auctionData.bids || []);
+      const endTime = new Date(auctionData.endDate).getTime();
       setTimeRemaining(Math.max(0, endTime - Date.now()));
       setError(null);
     } catch (err) {
@@ -137,8 +138,8 @@ export function useAuction(listingId: string): UseAuctionReturn {
     if (amount < minBid) throw new Error("Bid must be at least ?" + minBid.toLocaleString());
 
     try {
-      const response = await fetch("/api/marketplace/" + listingId, {
-        method: "PUT",
+      const response = await fetch("/api/marketplace/" + listingId + "/bids", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ farmerId, amount, isAutoBid }),
       });

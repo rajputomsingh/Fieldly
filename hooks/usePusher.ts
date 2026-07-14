@@ -1,6 +1,6 @@
 // hooks/usePusher.ts
 import { useEffect } from 'react'
-import { pusherClient } from '@/lib/pusher/client'
+import { getPusherClient } from '@/lib/pusher/client'
 
 // Define types that match your API response
 export interface NewBidEvent {
@@ -18,43 +18,33 @@ export interface AuctionExtendedEvent {
   newEndTime?: string
 }
 
-export interface AuctionEndedEvent {
-  winningBidId: string
-  winningAmount: number
-  winnerId: string
-  message: string
-}
-
-// Type-safe callback types
-type NewBidCallback = (data: NewBidEvent) => void
-type AuctionExtendedCallback = (data: AuctionExtendedEvent) => void
-type AuctionEndedCallback = (data: AuctionEndedEvent) => void
-
 interface PusherCallbacks {
-  onNewBid?: NewBidCallback
-  onAuctionExtended?: AuctionExtendedCallback
-  onAuctionEnded?: AuctionEndedCallback
+  onNewBid?: (data: NewBidEvent) => void
+  onAuctionExtended?: (data: AuctionExtendedEvent) => void
 }
 
-export function usePusher(channelName: string, callbacks: PusherCallbacks) {
+export function usePusher(channel: string, callbacks: PusherCallbacks) {
   useEffect(() => {
-    const channel = pusherClient.subscribe(channelName)
+    const client = getPusherClient()
+    if (!client) return
+
+    const ch = client.subscribe(channel)
 
     if (callbacks.onNewBid) {
-      channel.bind('new-bid', callbacks.onNewBid)
+      ch.bind('new-bid', callbacks.onNewBid)
     }
-    
     if (callbacks.onAuctionExtended) {
-      channel.bind('auction-extended', callbacks.onAuctionExtended)
-    }
-    
-    if (callbacks.onAuctionEnded) {
-      channel.bind('auction-ended', callbacks.onAuctionEnded)
+      ch.bind('auction-extended', callbacks.onAuctionExtended)
     }
 
     return () => {
-      channel.unbind_all()
-      pusherClient.unsubscribe(channelName)
+      if (callbacks.onNewBid) {
+        ch.unbind('new-bid', callbacks.onNewBid)
+      }
+      if (callbacks.onAuctionExtended) {
+        ch.unbind('auction-extended', callbacks.onAuctionExtended)
+      }
+      client.unsubscribe(channel)
     }
-  }, [channelName, callbacks.onNewBid, callbacks.onAuctionExtended, callbacks.onAuctionEnded])
+  }, [channel, callbacks.onNewBid, callbacks.onAuctionExtended])
 }

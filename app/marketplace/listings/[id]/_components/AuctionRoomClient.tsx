@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Timer, Users, TrendingUp, Award, Zap, Clock, Gavel, AlertCircle } from 'lucide-react'
+import { Timer, Zap, Gavel, AlertCircle } from 'lucide-react'
 import { formatCurrency, formatTimeLeft, getInitials } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import type { BidDTO, AuctionDTO } from '@/lib/marketplace/types'
@@ -31,16 +31,25 @@ interface AuctionData {
 }
 
 function getAuctionData(data: AuctionData | AuctionDTO | null): AuctionData {
-  if (!data) return null as unknown as AuctionData
+  if (!data) {
+    return { id: '', title: '', basePrice: 0, endDate: '', auctionStatus: '', _count: { bids: 0 }, bids: [] }
+  }
   if ('listing' in data) {
     const a = data as AuctionDTO
     return {
-      id: a.listing.id, title: a.listing.title, description: a.listing.description,
-      basePrice: a.listing.basePrice, bidIncrement: a.listing.bidIncrement,
-      endDate: a.listing.endDate, auctionStatus: a.listing.auctionStatus,
-      autoExtendMinutes: a.listing.autoExtendMinutes, currentLeaderId: a.listing.currentLeaderId,
-      highestBid: a.listing.highestBid, winningBid: a.listing.winningBid,
-      _count: { bids: a.stats.totalBids }, bids: a.listing.bids,
+      id: a.listing?.id || '',
+      title: a.listing?.title || '',
+      description: a.listing?.description,
+      basePrice: a.listing?.basePrice || 0,
+      bidIncrement: a.listing?.bidIncrement,
+      endDate: a.listing?.endDate || '',
+      auctionStatus: a.listing?.auctionStatus || '',
+      autoExtendMinutes: a.listing?.autoExtendMinutes,
+      currentLeaderId: a.listing?.currentLeaderId,
+      highestBid: a.listing?.highestBid,
+      winningBid: a.listing?.winningBid,
+      _count: { bids: a.stats?.totalBids ?? 0 },
+      bids: a.listing?.bids || [],
     }
   }
   return data as AuctionData
@@ -53,7 +62,6 @@ interface AuctionRoomClientProps {
 
 export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientProps) {
   const [bidAmount, setBidAmount] = useState('')
-  const [isAutoBid, setIsAutoBid] = useState(false)
   const { toast } = useToast()
   const { auction, bids, loading, placeBid, timeRemaining, isLive, error } = useAuction(listingId)
 
@@ -66,11 +74,11 @@ export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientP
     if (!bidAmount) return
     const amount = parseFloat(bidAmount)
     if (amount < minNextBid) {
-      toast({ title: 'Bid too low', description: "Minimum bid is " + formatCurrency(minNextBid), variant: 'destructive' })
+      toast({ title: 'Bid too low', description: 'Minimum bid is ' + formatCurrency(minNextBid), variant: 'destructive' })
       return
     }
     try {
-      await placeBid(amount, isAutoBid)
+      await placeBid(amount, false)
       setBidAmount('')
       toast({ title: 'Bid placed!', description: 'Your bid has been registered.' })
     } catch (err) {
@@ -78,7 +86,7 @@ export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientP
     }
   }
 
-  if (!currentAuction) {
+  if (!currentAuction || !currentAuction.id) {
     return <div className="flex items-center justify-center min-h-[400px]"><p className="text-muted-foreground">Auction not found</p></div>
   }
 
@@ -101,7 +109,7 @@ export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientP
             </div>
             <div className="space-y-4">
               <div className="flex gap-2">
-                <Input type="number" placeholder={"Min " + formatCurrency(minNextBid)} value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} min={minNextBid} disabled={!isLive} className="flex-1" />
+                <Input type="number" placeholder={'Min ' + formatCurrency(minNextBid)} value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} min={minNextBid} disabled={!isLive} className="flex-1" />
                 <Button onClick={handlePlaceBid} disabled={!isLive || loading} size="lg" className="min-w-[120px]">{loading ? 'Placing...' : 'Place Bid'}</Button>
               </div>
             </div>
@@ -114,7 +122,7 @@ export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientP
                   <div className="flex items-center gap-3">
                     {index === 0 && <Badge className="bg-yellow-500">Leader</Badge>}
                     <Avatar className="h-8 w-8"><AvatarImage src={bid.farmer?.imageUrl || ''} /><AvatarFallback>{getInitials(bid.farmer?.name || '?')}</AvatarFallback></Avatar>
-                    <div><p className="font-medium">{bid.farmer?.name || 'Anonymous'}</p><p className="text-xs text-muted-foreground">{new Date(bid.createdAt).toLocaleString()}</p></div>
+                    <div><p className="font-medium">{bid.farmer?.name || 'Anonymous'}</p><p className="text-xs text-muted-foreground">{new Date(bid.createdAt).toISOString().replace("T", " ").substring(0, 19)}</p></div>
                   </div>
                   <div className="text-right"><p className="font-bold text-lg">{formatCurrency(bid.amount)}</p></div>
                 </div>
@@ -129,7 +137,7 @@ export function AuctionRoomClient({ listingId, initialData }: AuctionRoomClientP
             <dl className="space-y-3">
               <div className="flex justify-between"><dt className="text-muted-foreground">Starting Price</dt><dd className="font-medium">{formatCurrency(currentAuction.basePrice)}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">Bid Increment</dt><dd className="font-medium">{formatCurrency(currentAuction.bidIncrement || 1000)}</dd></div>
-              <div className="flex justify-between"><dt className="text-muted-foreground">Ends At</dt><dd className="font-medium">{new Date(currentAuction.endDate).toLocaleString()}</dd></div>
+              <div className="flex justify-between"><dt className="text-muted-foreground">Ends At</dt><dd className="font-medium">{new Date(currentAuction.endDate).toISOString().replace("T", " ").substring(0, 19)}</dd></div>
             </dl>
           </Card>
         </div>
