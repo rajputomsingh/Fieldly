@@ -1,4 +1,4 @@
-// app/api/marketplace/feed/route.ts
+// GET /api/marketplace/feed - Marketplace Feed
 import { NextRequest } from 'next/server';
 import { marketplaceService } from '@/lib/marketplace/service';
 import { FeedFiltersSchema, PaginationSchema } from '@/lib/marketplace/validation';
