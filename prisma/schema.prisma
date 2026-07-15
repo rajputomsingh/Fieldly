@@ -350,7 +350,7 @@ model LandListing {
   savedBy              SavedListing[]
 
   @@index([ownerId])
-  @@index([status, auctionStatus, endDate]) 
+  @@index([status, auctionStatus, endDate])
   @@index([listingType])
   @@index([startDate, endDate])
   @@index([createdAt])
