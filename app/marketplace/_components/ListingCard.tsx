@@ -189,6 +189,7 @@ export function ListingCard({
             src={getImageSrc(index)}
             alt={listing.title}
             fill
+            loading="lazy"
             className={cn(
               "object-cover transition-all duration-700",
               isHovered ? "scale-110" : "scale-100",
