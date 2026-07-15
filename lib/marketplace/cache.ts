@@ -1,5 +1,5 @@
-﻿import { Redis } from '@upstash/redis';
-import crypto from 'crypto';
+﻿import { Redis } from "@upstash/redis";
+import crypto from "crypto";
 
 // In-memory cache fallback when Redis is not available
 const memoryCache = new Map<string, { value: unknown; expiresAt: number }>();
@@ -20,9 +20,9 @@ try {
 class CacheService {
   private generateKey(prefix: string, params: Record<string, unknown>): string {
     const hash = crypto
-      .createHash('sha1')
+      .createHash("sha1")
       .update(JSON.stringify(params))
-      .digest('hex');
+      .digest("hex");
     return prefix + ":" + hash;
   }
 
@@ -38,7 +38,7 @@ class CacheService {
         // Redis failed, fall through to memory
       }
     }
-    
+
     // Memory fallback
     const entry = memoryCache.get(key);
     if (entry && entry.expiresAt > Date.now()) {
@@ -50,9 +50,13 @@ class CacheService {
     return null;
   }
 
-  private async safeSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+  private async safeSet(
+    key: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
     const ttlMs = ttlSeconds * 1000;
-    
+
     // Always set memory cache (it always works)
     memoryCache.set(key, {
       value,
@@ -72,48 +76,77 @@ class CacheService {
   private async safeDel(key: string): Promise<void> {
     memoryCache.delete(key);
     if (redis) {
-      try { await redis.del(key); } catch { /* ignore */ }
+      try {
+        await redis.del(key);
+      } catch {
+        /* ignore */
+      }
     }
   }
 
   // Periodically clean expired memory entries
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
-  
+
   constructor() {
     // Clean expired entries every 5 minutes
-    if (typeof setInterval !== 'undefined') {
-      this.cleanupInterval = setInterval(() => {
-        const now = Date.now();
-        for (const [key, entry] of memoryCache.entries()) {
-          if (entry.expiresAt <= now) {
-            memoryCache.delete(key);
+    if (typeof setInterval !== "undefined") {
+      this.cleanupInterval = setInterval(
+        () => {
+          const now = Date.now();
+          for (const [key, entry] of memoryCache.entries()) {
+            if (entry.expiresAt <= now) {
+              memoryCache.delete(key);
+            }
           }
-        }
-      }, 5 * 60 * 1000);
+        },
+        5 * 60 * 1000,
+      );
     }
   }
 
-  async getListing(listingId: string, userId?: string): Promise<unknown | null> {
-    return this.safeGet(this.generateKey("listing", { id: listingId, userId: userId || "anonymous" }));
-  }
-
-  async setListing(listingId: string, data: unknown, userId?: string): Promise<void> {
-    await this.safeSet(
-      this.generateKey("listing", { id: listingId, userId: userId || "anonymous" }),
-      data,
-      300
+  async getListing(
+    listingId: string,
+    userId?: string,
+  ): Promise<unknown | null> {
+    return this.safeGet(
+      this.generateKey("listing", {
+        id: listingId,
+        userId: userId || "anonymous",
+      }),
     );
   }
 
-  async getFeed(filters: unknown, pagination: unknown): Promise<unknown | null> {
+  async setListing(
+    listingId: string,
+    data: unknown,
+    userId?: string,
+  ): Promise<void> {
+    await this.safeSet(
+      this.generateKey("listing", {
+        id: listingId,
+        userId: userId || "anonymous",
+      }),
+      data,
+      300,
+    );
+  }
+
+  async getFeed(
+    filters: unknown,
+    pagination: unknown,
+  ): Promise<unknown | null> {
     return this.safeGet(this.generateKey("feed", { filters, pagination }));
   }
 
-  async setFeed(filters: unknown, pagination: unknown, data: unknown): Promise<void> {
+  async setFeed(
+    filters: unknown,
+    pagination: unknown,
+    data: unknown,
+  ): Promise<void> {
     await this.safeSet(
       this.generateKey("feed", { filters, pagination }),
       data,
-      60
+      120,
     );
   }
 
@@ -126,7 +159,9 @@ class CacheService {
   }
 
   async invalidateListing(listingId: string): Promise<void> {
-    await this.safeDel(this.generateKey("listing", { id: listingId, userId: "anonymous" }));
+    await this.safeDel(
+      this.generateKey("listing", { id: listingId, userId: "anonymous" }),
+    );
     await this.safeDel("auction:" + listingId);
   }
 
@@ -142,7 +177,9 @@ class CacheService {
       try {
         const keys = await redis.keys(prefix + "*");
         if (keys.length > 0) await redis.del(...keys);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -152,7 +189,8 @@ class CacheService {
 
   async trackView(listingId: string, userId?: string): Promise<boolean> {
     const today = new Date().toISOString().split("T")[0];
-    const key = "view:" + listingId + ":" + (userId || "anonymous") + ":" + today;
+    const key =
+      "view:" + listingId + ":" + (userId || "anonymous") + ":" + today;
     const viewed = await this.safeGet(key);
     if (!viewed) {
       await this.safeSet(key, "1", 86400);
