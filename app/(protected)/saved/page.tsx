@@ -33,7 +33,7 @@ export default function SavedListingsPage() {
         const data = await res.json();
 
         if (res.ok) {
-          setSavedListings(data.saved || []);
+          setSavedListings(data.data?.saved ?? []);
         } else {
           setError(data.error || "Failed to load saved listings");
         }
