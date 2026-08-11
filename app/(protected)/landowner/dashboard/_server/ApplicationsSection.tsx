@@ -6,11 +6,7 @@ import {
   type RecentApplication,
 } from "../_components/RecentApplications";
 
-export async function ApplicationsSection({
-  userId,
-}: {
-  userId: string;
-}) {
+export async function ApplicationsSection({ userId }: { userId: string }) {
   // Get the database user ID from Clerk userId
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId },
@@ -50,15 +46,19 @@ export async function ApplicationsSection({
     },
   });
 
-  console.log(
-    `📊 Found ${apps.length} applications for user ${user.id}`,
-  );
+  console.log(`📊 Found ${apps.length} applications for user ${user.id}`);
 
   const mapped: RecentApplication[] = apps.map((a) => ({
     id: a.id,
     farmerName: a.farmer.name,
     farmerImage: a.farmer.imageUrl,
-    proposedRent: a.proposedRent?.toString() ?? null,
+    proposedRent: a.proposedRent
+      ? new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+          maximumFractionDigits: 0,
+        }).format(a.proposedRent.toNumber())
+      : null,
     status: a.status as RecentApplication["status"],
     createdAt: a.createdAt.toISOString(),
     landTitle: a.land.title,
