@@ -9,10 +9,6 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-// ============================================
-// USER & AUTHENTICATION
-// ============================================
-
 model User {
   id                     String                  @id @default(cuid())
   clerkUserId            String                  @unique
@@ -26,10 +22,10 @@ model User {
   state                  String?
   district               String?
   bio                    String?
-  isActive               Boolean                 @default(true)
-  deletedAt              DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  deletedAt              DateTime?
+  isActive               Boolean                 @default(true)
   adminActions           AdminAction[]
   adminConfigUpdates     AdminConfig[]           @relation("AdminConfigUpdatedBy")
   adminSessions          AdminSession[]
@@ -66,10 +62,6 @@ model User {
   @@index([isActive, deletedAt])
 }
 
-// ============================================
-// ADMIN & GOVERNANCE
-// ============================================
-
 model AdminConfig {
   id          String   @id @default(cuid())
   key         String   @unique
@@ -80,7 +72,7 @@ model AdminConfig {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   updatedBy   String?
-  admin       User?    @relation("AdminConfigUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  admin       User?    @relation("AdminConfigUpdatedBy", fields: [updatedBy], references: [id])
 
   @@index([key])
   @@index([category])
@@ -89,20 +81,20 @@ model AdminConfig {
 model AdminSession {
   id            String    @id @default(cuid())
   adminId       String
-  tokenHash     String    @unique
   ipAddress     String
   userAgent     String?
   location      String?
-  deviceInfo    Json?
-  ips           String[]  @default([])
   createdAt     DateTime  @default(now())
   expiresAt     DateTime
   lastActive    DateTime  @default(now())
   isRevoked     Boolean   @default(false)
   revokedAt     DateTime?
   revokedBy     String?
+  deviceInfo    Json?
+  ips           String[]  @default([])
   revokedReason String?
-  admin         User      @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  tokenHash     String    @unique
+  admin         User      @relation(fields: [adminId], references: [id])
 
   @@index([adminId])
   @@index([tokenHash])
@@ -122,7 +114,7 @@ model AdminAction {
   ipAddress String
   userAgent String?
   createdAt DateTime @default(now())
-  admin     User     @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  admin     User     @relation(fields: [adminId], references: [id])
 
   @@index([adminId])
   @@index([action])
@@ -140,7 +132,7 @@ model PlatformSetting {
   updatedBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  admin       User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  admin       User?    @relation(fields: [updatedBy], references: [id])
 
   @@index([key])
   @@index([category])
@@ -158,16 +150,12 @@ model Report {
   generatedBy String
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
-  admin       User      @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
+  admin       User      @relation(fields: [generatedBy], references: [id])
 
   @@index([type])
   @@index([generatedBy])
   @@index([createdAt])
 }
-
-// ============================================
-// DISPUTE MANAGEMENT
-// ============================================
 
 model Dispute {
   id          String              @id @default(cuid())
@@ -184,8 +172,8 @@ model Dispute {
   updatedAt   DateTime            @updatedAt
   resolvedAt  DateTime?
   resolution  String?
-  assigned    User?               @relation("AssignedDisputes", fields: [assignedTo], references: [id], onDelete: SetNull)
-  filedBy     User                @relation("DisputeFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
+  assigned    User?               @relation("AssignedDisputes", fields: [assignedTo], references: [id])
+  filedBy     User                @relation("DisputeFiledBy", fields: [filedById], references: [id])
   resolutions DisputeResolution[]
 
   @@index([filedById])
@@ -204,16 +192,12 @@ model DisputeResolution {
   notes     String
   metadata  Json?
   createdAt DateTime @default(now())
-  admin     User     @relation(fields: [adminId], references: [id], onDelete: Restrict)
-  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Restrict)
+  admin     User     @relation(fields: [adminId], references: [id])
+  dispute   Dispute  @relation(fields: [disputeId], references: [id])
 
   @@index([disputeId])
   @@index([adminId])
 }
-
-// ============================================
-// SECURITY & RATE LIMITING
-// ============================================
 
 model RateLimit {
   id        String   @id @default(cuid())
@@ -237,17 +221,13 @@ model SecurityEvent {
   userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([type])
   @@index([severity])
   @@index([ipAddress])
   @@index([createdAt])
 }
-
-// ============================================
-// PAYMENT WEBHOOKS
-// ============================================
 
 model PaymentWebhookEvent {
   id          String    @id @default(cuid())
@@ -264,10 +244,6 @@ model PaymentWebhookEvent {
   @@index([processedAt])
 }
 
-// ============================================
-// USER PROFILES
-// ============================================
-
 model FarmerProfile {
   id                String      @id @default(cuid())
   userId            String      @unique
@@ -281,7 +257,7 @@ model FarmerProfile {
   isVerified        Boolean     @default(false)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user              User        @relation(fields: [userId], references: [id])
 }
 
 model LandownerProfile {
@@ -295,12 +271,8 @@ model LandownerProfile {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   lands                     Land[]
-  user                      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user                      User     @relation(fields: [userId], references: [id])
 }
-
-// ============================================
-// LAND & LISTINGS
-// ============================================
 
 model Land {
   id                               String                 @id @default(cuid())
@@ -326,7 +298,6 @@ model Land {
   expectedRentMax                  Decimal?               @db.Decimal(10, 2)
   minLeaseDuration                 Int
   maxLeaseDuration                 Int
-  availabilityStatus               LandAvailabilityStatus @default(AVAILABLE)
   createdAt                        DateTime               @default(now())
   updatedAt                        DateTime               @updatedAt
   address                          String?
@@ -344,10 +315,11 @@ model Land {
   editCount                        Int                    @default(0)
   isArchived                       Boolean                @default(false)
   lastEditedAt                     DateTime?
+  availabilityStatus               LandAvailabilityStatus @default(AVAILABLE)
   version                          Int                    @default(0)
   applications                     Application[]
   documents                        Document[]
-  landowner                        LandownerProfile       @relation(fields: [landownerId], references: [id], onDelete: Restrict)
+  landowner                        LandownerProfile       @relation(fields: [landownerId], references: [id])
   listings                         LandListing[]
   leases                           Lease[]
   images                           ListingImage[]
@@ -398,8 +370,8 @@ model LandListing {
   applications         Application[]
   auctionEvents        AuctionEvent[]
   bids                 Bid[]
-  land                 Land              @relation(fields: [landId], references: [id], onDelete: Restrict)
-  owner                User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  land                 Land              @relation(fields: [landId], references: [id])
+  owner                User              @relation(fields: [ownerId], references: [id])
   winningBid           Bid?              @relation("WinningBid", fields: [winningBidId], references: [id])
   leases               Lease[]
   analytics            ListingAnalytics?
@@ -428,7 +400,7 @@ model ListingTerms {
   updatedAt               DateTime         @updatedAt
   inspectionRequired      Boolean          @default(false)
   insuranceRequired       Boolean          @default(false)
-  listing                 LandListing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  listing                 LandListing      @relation(fields: [listingId], references: [id])
 }
 
 model ListingImage {
@@ -440,17 +412,13 @@ model ListingImage {
   createdAt DateTime     @default(now())
   sortOrder Int          @default(0)
   landId    String?
-  land      Land?        @relation(fields: [landId], references: [id], onDelete: SetNull)
-  listing   LandListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  land      Land?        @relation(fields: [landId], references: [id])
+  listing   LandListing? @relation(fields: [listingId], references: [id])
 
   @@index([listingId])
   @@index([landId])
   @@index([isPrimary])
 }
-
-// ============================================
-// BIDDING & AUCTIONS
-// ============================================
 
 model Bid {
   id        String         @id @default(cuid())
@@ -467,8 +435,8 @@ model Bid {
   sequence  Int
   version   Int            @default(0)
   events    AuctionEvent[]
-  farmer    User           @relation(fields: [farmerId], references: [id], onDelete: Restrict)
-  listing   LandListing    @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  farmer    User           @relation(fields: [farmerId], references: [id])
+  listing   LandListing    @relation(fields: [listingId], references: [id])
   winningOf LandListing?   @relation("WinningBid")
 
   @@index([listingId])
@@ -489,16 +457,12 @@ model AuctionEvent {
   bidId     String?
   metadata  Json?
   createdAt DateTime    @default(now())
-  bid       Bid?        @relation(fields: [bidId], references: [id], onDelete: SetNull)
-  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  bid       Bid?        @relation(fields: [bidId], references: [id])
+  listing   LandListing @relation(fields: [listingId], references: [id])
 
   @@index([listingId])
   @@index([createdAt])
 }
-
-// ============================================
-// APPLICATIONS & LEASES
-// ============================================
 
 model Application {
   id           String            @id @default(cuid())
@@ -515,9 +479,9 @@ model Application {
   reviewNotes  String?
   reviewedAt   DateTime?
   version      Int               @default(0)
-  farmer       User              @relation(fields: [farmerId], references: [id], onDelete: Restrict)
-  land         Land              @relation(fields: [landId], references: [id], onDelete: Restrict)
-  listing      LandListing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  farmer       User              @relation(fields: [farmerId], references: [id])
+  land         Land              @relation(fields: [landId], references: [id])
+  listing      LandListing?      @relation(fields: [listingId], references: [id])
 
   @@unique([landId, farmerId, status])
   @@index([farmerId])
@@ -541,37 +505,34 @@ model Lease {
   securityDeposit    Decimal?               @db.Decimal(10, 2)
   startDate          DateTime
   endDate            DateTime
-  // lifecycleStatus is the CANONICAL state machine.
-  // status is a backwards-compatible simplified representation.
-  // NEVER mutate both independently. Use leaseStateMachine.transition()
-  lifecycleStatus    LeaseLifecycleStatus   @default(DRAFT)
   status             LeaseStatus            @default(DRAFT)
-  paymentStatus      LeasePaymentStatus     @default(PENDING)
-  farmerSignedAt     DateTime?
-  ownerSignedAt      DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
   signedAt           DateTime?
-  activatedAt        DateTime?
-  terminatedAt       DateTime?
-  terminatedBy       String?
-  terminationReason  TerminationReason?
   creditApproved     Boolean                @default(false)
-  escrowStatus       EscrowStatus?
-  escrowReleasedAt   DateTime?
   grossContractValue Decimal?               @db.Decimal(12, 2)
   leaseSource        LeaseSource            @default(AUCTION)
   netOwnerReceivable Decimal?               @db.Decimal(10, 2)
   platformFee        Decimal?               @db.Decimal(8, 2)
   riskScore          Float?
+  activatedAt        DateTime?
+  escrowReleasedAt   DateTime?
+  farmerSignedAt     DateTime?
+  lifecycleStatus    LeaseLifecycleStatus   @default(DRAFT)
+  ownerSignedAt      DateTime?
+  paymentStatus      LeasePaymentStatus     @default(PENDING)
+  terminatedAt       DateTime?
+  terminatedBy       String?
   version            Int                    @default(0)
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  terminationReason  TerminationReason?
+  escrowStatus       EscrowStatus?
+  farmer             User                   @relation("FarmerLeases", fields: [farmerId], references: [id])
+  land               Land                   @relation(fields: [landId], references: [id])
+  listing            LandListing?           @relation(fields: [listingId], references: [id])
+  owner              User                   @relation("OwnerLeases", fields: [ownerId], references: [id])
   agreements         LeaseAgreement[]
   events             LeaseEvent[]
   paymentSchedule    LeasePaymentSchedule[]
-  farmer             User                   @relation("FarmerLeases", fields: [farmerId], references: [id], onDelete: Restrict)
-  land               Land                   @relation(fields: [landId], references: [id], onDelete: Restrict)
-  listing            LandListing?           @relation(fields: [listingId], references: [id], onDelete: SetNull)
-  owner              User                   @relation("OwnerLeases", fields: [ownerId], references: [id], onDelete: Restrict)
   payments           Payment[]
   review             Review?
 
@@ -589,10 +550,6 @@ model Lease {
   @@index([paymentStatus, lifecycleStatus])
 }
 
-// ============================================
-// LEASE AGREEMENTS & SIGNATURES
-// ============================================
-
 model LeaseAgreement {
   id              String           @id @default(cuid())
   leaseId         String
@@ -607,7 +564,7 @@ model LeaseAgreement {
   expiresAt       DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  lease           Lease            @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease           Lease            @relation(fields: [leaseId], references: [id])
   signatures      LeaseSignature[]
 
   @@unique([leaseId, version])
@@ -626,17 +583,13 @@ model LeaseSignature {
   userAgent     String?
   metadata      Json?
   createdAt     DateTime       @default(now())
-  agreement     LeaseAgreement @relation(fields: [agreementId], references: [id], onDelete: Restrict)
-  signer        User           @relation(fields: [signerId], references: [id], onDelete: Restrict)
+  agreement     LeaseAgreement @relation(fields: [agreementId], references: [id])
+  signer        User           @relation(fields: [signerId], references: [id])
 
   @@unique([agreementId, signerId])
   @@index([agreementId])
   @@index([signerId])
 }
-
-// ============================================
-// LEASE PAYMENT SCHEDULE (NEW)
-// ============================================
 
 model LeasePaymentSchedule {
   id              String        @id @default(cuid())
@@ -650,17 +603,13 @@ model LeasePaymentSchedule {
   paidAt          DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  lease           Lease         @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease           Lease         @relation(fields: [leaseId], references: [id])
   payments        Payment[]
 
   @@unique([leaseId, installmentNo])
   @@index([leaseId, status])
   @@index([dueDate, status])
 }
-
-// ============================================
-// LEASE EVENTS (NEW)
-// ============================================
 
 model LeaseEvent {
   id        String   @id @default(cuid())
@@ -669,48 +618,44 @@ model LeaseEvent {
   type      String
   metadata  Json?
   createdAt DateTime @default(now())
-  lease     Lease    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease     Lease    @relation(fields: [leaseId], references: [id])
 
   @@index([leaseId, createdAt])
   @@index([type, createdAt])
 }
 
-// ============================================
-// PAYMENTS
-// ============================================
-
 model Payment {
   id                String                @id @default(cuid())
-  idempotencyKey    String?               @unique
   userId            String
   leaseId           String?
-  scheduleId        String?
   amount            Decimal               @db.Decimal(10, 2)
   currency          String                @default("INR")
   status            PaymentStatus         @default(PENDING)
-  provider          PaymentProvider       @default(RAZORPAY)
   providerRef       String?               @unique
-  razorpayOrderId   String?               @unique
-  razorpayPaymentId String?               @unique
-  razorpaySignature String?
-  paymentType       PaymentType
+  createdAt         DateTime              @default(now())
+  dueDate           DateTime?
+  notes             String?
+  paidAt            DateTime?
+  receiptUrl        String?
   gatewayFee        Decimal?              @db.Decimal(8, 2)
   netAmount         Decimal?              @db.Decimal(10, 2)
   platformFee       Decimal?              @db.Decimal(8, 2)
+  razorpayOrderId   String?               @unique
+  razorpayPaymentId String?               @unique
+  razorpaySignature String?
   attempts          Int                   @default(1)
+  idempotencyKey    String?               @unique
   lastAttemptAt     DateTime?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  dueDate           DateTime?
-  paidAt            DateTime?
-  refundedAt        DateTime?
-  notes             String?
-  receiptUrl        String?
   metadata          Json?
+  provider          PaymentProvider       @default(RAZORPAY)
+  refundedAt        DateTime?
+  scheduleId        String?
+  updatedAt         DateTime              @updatedAt
   version           Int                   @default(0)
+  paymentType       PaymentType
   lease             Lease?                @relation(fields: [leaseId], references: [id], onDelete: Restrict)
   schedule          LeasePaymentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
-  user              User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user              User                  @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([leaseId])
@@ -732,10 +677,6 @@ model Payment {
   @@index([paymentType, status])
 }
 
-// ============================================
-// REVIEWS & MESSAGING
-// ============================================
-
 model Review {
   id         String   @id @default(cuid())
   leaseId    String   @unique
@@ -746,9 +687,9 @@ model Review {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   response   String?
-  lease      Lease    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
-  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Restrict)
-  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  lease      Lease    @relation(fields: [leaseId], references: [id])
+  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id])
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id])
 
   @@index([revieweeId])
   @@index([rating])
@@ -762,18 +703,14 @@ model Message {
   createdAt  DateTime  @default(now())
   isRead     Boolean   @default(false)
   readAt     DateTime?
-  receiver   User      @relation("MessagesReceived", fields: [receiverId], references: [id], onDelete: Restrict)
-  sender     User      @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Restrict)
+  receiver   User      @relation("MessagesReceived", fields: [receiverId], references: [id])
+  sender     User      @relation("MessagesSent", fields: [senderId], references: [id])
 
   @@index([senderId])
   @@index([receiverId])
   @@index([isRead])
   @@index([createdAt])
 }
-
-// ============================================
-// NOTIFICATIONS
-// ============================================
 
 model Notification {
   id         String           @id @default(cuid())
@@ -787,7 +724,7 @@ model Notification {
   readAt     DateTime?
   entityId   String?
   entityType String?
-  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user       User             @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([isRead])
@@ -811,23 +748,19 @@ model ScheduledNotification {
   adminId     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  admin       User      @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  admin       User      @relation(fields: [adminId], references: [id])
 
   @@index([status, scheduledAt])
   @@index([adminId])
 }
-
-// ============================================
-// MARKETPLACE FEATURES
-// ============================================
 
 model SavedListing {
   id        String      @id @default(cuid())
   listingId String
   userId    String
   createdAt DateTime    @default(now())
-  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  listing   LandListing @relation(fields: [listingId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
 
   @@unique([listingId, userId])
   @@index([userId])
@@ -842,7 +775,7 @@ model ListingAnalytics {
   avgBidGap       Float?
   watchers        Int         @default(0)
   lastActivityAt  DateTime?
-  listing         LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  listing         LandListing @relation(fields: [listingId], references: [id])
 }
 
 model MarketSubscription {
@@ -851,7 +784,7 @@ model MarketSubscription {
   filters   Json
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -866,12 +799,8 @@ model Subscription {
   autoRenew   Boolean            @default(true)
   lastBilling DateTime?
   nextBilling DateTime?
-  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user        User               @relation(fields: [userId], references: [id])
 }
-
-// ============================================
-// DOCUMENTS & SOIL REPORTS
-// ============================================
 
 model SoilReport {
   id        String    @id @default(cuid())
@@ -883,7 +812,7 @@ model SoilReport {
   reportUrl String?
   testedAt  DateTime?
   testedBy  String?
-  land      Land      @relation(fields: [landId], references: [id], onDelete: Restrict)
+  land      Land      @relation(fields: [landId], references: [id])
 
   @@index([landId])
   @@index([testedAt])
@@ -898,17 +827,13 @@ model Document {
   createdAt DateTime @default(now())
   size      Int?
   type      String?
-  land      Land?    @relation(fields: [landId], references: [id], onDelete: SetNull)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  land      Land?    @relation(fields: [landId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([landId])
   @@index([type])
 }
-
-// ============================================
-// AUDIT & LOGGING
-// ============================================
 
 model AuditLog {
   id        String   @id @default(cuid())
@@ -920,17 +845,13 @@ model AuditLog {
   entityId  String?
   ipAddress String?
   userAgent String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
   @@index([entity, entityId])
   @@index([createdAt])
 }
-
-// ============================================
-// ENUMS
-// ============================================
 
 enum UserRole {
   FARMER
@@ -982,9 +903,6 @@ enum LeaseStatus {
   RENEWED
 }
 
-// CANONICAL state machine for Lease.
-// status is a backwards-compatible simplified representation.
-// NEVER mutate both independently. Use leaseStateMachine.transition()
 enum LeaseLifecycleStatus {
   DRAFT
   PENDING_SIGNATURES
