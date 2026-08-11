@@ -23,7 +23,7 @@ class AuctionEventService {
     await this.trigger(`auction-${listingId}`, 'new-bid', {
       bid: {
         id: bid.id,
-        amount: bid.amount,
+        amount: bid.amount ?? 0,
         farmerId: bid.farmerId,
         createdAt: bid.createdAt instanceof Date ? bid.createdAt.toISOString() : bid.createdAt,
       },

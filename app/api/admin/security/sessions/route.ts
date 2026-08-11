@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/server/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { logDetailedAction } from "@/lib/server/audit-logger";
 import { headers } from "next/headers";
+import { createHash } from "crypto";
 import { revokeAdminSession, revokeAllAdminSessions } from "@/lib/server/session-manager";
 
 // Type definitions
@@ -247,7 +248,7 @@ export async function GET_CURRENT(req: NextRequest) {
         expiresAt: s.expiresAt.toISOString(),
         lastActive: s.lastActive.toISOString(),
         isActive: new Date(s.expiresAt) > new Date(),
-        isCurrent: s.token === currentSessionToken,
+        isCurrent: currentSessionToken ? s.tokenHash === createHash('sha256').update(currentSessionToken).digest('hex') : false,
       })),
       activeCount: sessions.filter((s) => new Date(s.expiresAt) > new Date()).length,
     });

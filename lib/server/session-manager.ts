@@ -1,37 +1,53 @@
 // lib/server/session-manager.ts
 import { prisma } from "@/lib/prisma";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 
 export async function createAdminSession(
   adminId: string,
   ipAddress: string,
   userAgent?: string
 ) {
-  const token = randomBytes(32).toString("hex");
+  // Generate raw token
+  const rawToken = randomBytes(32).toString("hex");
+  
+  // Hash token for database storage
+  const tokenHash = createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+  
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 12); // 12 hour session
 
   const session = await prisma.adminSession.create({
     data: {
       adminId,
-      token,
+      tokenHash,    // Store hash, not raw token
       ipAddress,
       userAgent,
       expiresAt,
     },
   });
 
-  return session;
+  // Return raw token only to the caller (client)
+  return {
+    id: session.id,
+    token: rawToken,
+    expiresAt: session.expiresAt,
+  };
 }
 
-export async function validateAdminSession(adminId: string): Promise<boolean> {
+export async function validateAdminSession(rawToken: string): Promise<{ valid: boolean; adminId?: string }> {
+  // Hash the incoming token to compare with stored hash
+  const tokenHash = createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+
   const session = await prisma.adminSession.findFirst({
     where: {
-      adminId,
+      tokenHash,
       isRevoked: false,
       expiresAt: { gt: new Date() },
     },
-    orderBy: { createdAt: "desc" },
   });
 
   if (session) {
@@ -39,10 +55,10 @@ export async function validateAdminSession(adminId: string): Promise<boolean> {
       where: { id: session.id },
       data: { lastActive: new Date() },
     });
-    return true;
+    return { valid: true, adminId: session.adminId };
   }
 
-  return false;
+  return { valid: false };
 }
 
 export async function revokeAdminSession(sessionId: string, revokedBy: string) {

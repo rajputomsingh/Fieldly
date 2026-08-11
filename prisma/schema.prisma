@@ -3,9 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
 
 model User {
   id                     String                  @id @default(cuid())
@@ -20,6 +26,8 @@ model User {
   state                  String?
   district               String?
   bio                    String?
+  isActive               Boolean                 @default(true)
+  deletedAt              DateTime?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   adminActions           AdminAction[]
@@ -37,6 +45,7 @@ model User {
   landownerProfile       LandownerProfile?
   leasesAsFarmer         Lease[]                 @relation("FarmerLeases")
   leasesAsOwner          Lease[]                 @relation("OwnerLeases")
+  leaseSignatures        LeaseSignature[]
   marketSubscriptions    MarketSubscription[]
   messagesReceived       Message[]               @relation("MessagesReceived")
   messagesSent           Message[]               @relation("MessagesSent")
@@ -54,7 +63,12 @@ model User {
   @@index([clerkUserId])
   @@index([email])
   @@index([role])
+  @@index([isActive, deletedAt])
 }
+
+// ============================================
+// ADMIN & GOVERNANCE
+// ============================================
 
 model AdminConfig {
   id          String   @id @default(cuid())
@@ -66,31 +80,35 @@ model AdminConfig {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   updatedBy   String?
-  admin       User?    @relation("AdminConfigUpdatedBy", fields: [updatedBy], references: [id])
+  admin       User?    @relation("AdminConfigUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@index([key])
   @@index([category])
 }
 
 model AdminSession {
-  id         String    @id @default(cuid())
-  adminId    String
-  token      String    @unique
-  ipAddress  String
-  userAgent  String?
-  location   String?
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime
-  lastActive DateTime  @default(now())
-  isRevoked  Boolean   @default(false)
-  revokedAt  DateTime?
-  revokedBy  String?
-  admin      User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  adminId       String
+  tokenHash     String    @unique
+  ipAddress     String
+  userAgent     String?
+  location      String?
+  deviceInfo    Json?
+  ips           String[]  @default([])
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  lastActive    DateTime  @default(now())
+  isRevoked     Boolean   @default(false)
+  revokedAt     DateTime?
+  revokedBy     String?
+  revokedReason String?
+  admin         User      @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
   @@index([adminId])
-  @@index([token])
+  @@index([tokenHash])
   @@index([expiresAt])
   @@index([isRevoked])
+  @@index([adminId, isRevoked])
 }
 
 model AdminAction {
@@ -104,7 +122,7 @@ model AdminAction {
   ipAddress String
   userAgent String?
   createdAt DateTime @default(now())
-  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
   @@index([adminId])
   @@index([action])
@@ -122,7 +140,7 @@ model PlatformSetting {
   updatedBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  admin       User?    @relation(fields: [updatedBy], references: [id])
+  admin       User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@index([key])
   @@index([category])
@@ -140,12 +158,16 @@ model Report {
   generatedBy String
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
-  admin       User      @relation(fields: [generatedBy], references: [id])
+  admin       User      @relation(fields: [generatedBy], references: [id], onDelete: Restrict)
 
   @@index([type])
   @@index([generatedBy])
   @@index([createdAt])
 }
+
+// ============================================
+// DISPUTE MANAGEMENT
+// ============================================
 
 model Dispute {
   id          String              @id @default(cuid())
@@ -162,8 +184,8 @@ model Dispute {
   updatedAt   DateTime            @updatedAt
   resolvedAt  DateTime?
   resolution  String?
-  assigned    User?               @relation("AssignedDisputes", fields: [assignedTo], references: [id])
-  filedBy     User                @relation("DisputeFiledBy", fields: [filedById], references: [id])
+  assigned    User?               @relation("AssignedDisputes", fields: [assignedTo], references: [id], onDelete: SetNull)
+  filedBy     User                @relation("DisputeFiledBy", fields: [filedById], references: [id], onDelete: Restrict)
   resolutions DisputeResolution[]
 
   @@index([filedById])
@@ -171,6 +193,7 @@ model Dispute {
   @@index([priority])
   @@index([assignedTo])
   @@index([createdAt])
+  @@index([status, priority, createdAt])
 }
 
 model DisputeResolution {
@@ -181,12 +204,16 @@ model DisputeResolution {
   notes     String
   metadata  Json?
   createdAt DateTime @default(now())
-  admin     User     @relation(fields: [adminId], references: [id])
-  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Restrict)
 
   @@index([disputeId])
   @@index([adminId])
 }
+
+// ============================================
+// SECURITY & RATE LIMITING
+// ============================================
 
 model RateLimit {
   id        String   @id @default(cuid())
@@ -210,13 +237,36 @@ model SecurityEvent {
   userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([type])
   @@index([severity])
   @@index([ipAddress])
   @@index([createdAt])
 }
+
+// ============================================
+// PAYMENT WEBHOOKS
+// ============================================
+
+model PaymentWebhookEvent {
+  id          String    @id @default(cuid())
+  eventId     String    @unique
+  eventType   String
+  paymentId   String?
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([eventType])
+  @@index([paymentId])
+  @@index([processedAt])
+}
+
+// ============================================
+// USER PROFILES
+// ============================================
 
 model FarmerProfile {
   id                String      @id @default(cuid())
@@ -231,7 +281,7 @@ model FarmerProfile {
   isVerified        Boolean     @default(false)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
 }
 
 model LandownerProfile {
@@ -245,11 +295,15 @@ model LandownerProfile {
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   lands                     Land[]
-  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 }
 
+// ============================================
+// LAND & LISTINGS
+// ============================================
+
 model Land {
-  id                               String            @id @default(cuid())
+  id                               String                 @id @default(cuid())
   landownerId                      String
   title                            String
   size                             Float
@@ -258,40 +312,42 @@ model Land {
   latitude                         Float?
   longitude                        Float?
   village                          String?
-  irrigationAvailable              Boolean           @default(false)
-  electricityAvailable             Boolean?          @default(false)
-  roadAccess                       Boolean?          @default(false)
-  fencingAvailable                 Boolean?          @default(false)
-  storageAvailable                 Boolean?          @default(false)
+  irrigationAvailable              Boolean                @default(false)
+  electricityAvailable             Boolean?               @default(false)
+  roadAccess                       Boolean?               @default(false)
+  fencingAvailable                 Boolean?               @default(false)
+  storageAvailable                 Boolean?               @default(false)
   allowedCropTypes                 String[]
-  allowsInfrastructureModification Boolean           @default(false)
-  allowsOrganicFarming             Boolean           @default(true)
-  allowsSubleasing                 Boolean           @default(false)
-  depositAmount                    Float?
-  expectedRentMin                  Float?
-  expectedRentMax                  Float?
+  allowsInfrastructureModification Boolean                @default(false)
+  allowsOrganicFarming             Boolean                @default(true)
+  allowsSubleasing                 Boolean                @default(false)
+  depositAmount                    Decimal?               @db.Decimal(12, 2)
+  expectedRentMin                  Decimal?               @db.Decimal(10, 2)
+  expectedRentMax                  Decimal?               @db.Decimal(10, 2)
   minLeaseDuration                 Int
   maxLeaseDuration                 Int
-  createdAt                        DateTime          @default(now())
-  updatedAt                        DateTime          @updatedAt
+  availabilityStatus               LandAvailabilityStatus @default(AVAILABLE)
+  createdAt                        DateTime               @default(now())
+  updatedAt                        DateTime               @updatedAt
   address                          String?
   description                      String?
   district                         String?
-  isActive                         Boolean           @default(true)
+  isActive                         Boolean                @default(true)
   pincode                          String?
   preferredPaymentFrequency        PaymentFrequency?
   previousCrops                    String[]
-  saves                            Int               @default(0)
-  soilReportAvailable              Boolean           @default(false)
+  saves                            Int                    @default(0)
+  soilReportAvailable              Boolean                @default(false)
   state                            String?
-  views                            Int               @default(0)
+  views                            Int                    @default(0)
   waterSource                      String?
-  editCount                        Int               @default(0)
-  isArchived                       Boolean           @default(false)
+  editCount                        Int                    @default(0)
+  isArchived                       Boolean                @default(false)
   lastEditedAt                     DateTime?
+  version                          Int                    @default(0)
   applications                     Application[]
   documents                        Document[]
-  landowner                        LandownerProfile  @relation(fields: [landownerId], references: [id], onDelete: Cascade)
+  landowner                        LandownerProfile       @relation(fields: [landownerId], references: [id], onDelete: Restrict)
   listings                         LandListing[]
   leases                           Lease[]
   images                           ListingImage[]
@@ -301,6 +357,7 @@ model Land {
   @@index([landType])
   @@index([isActive])
   @@index([isArchived])
+  @@index([availabilityStatus])
   @@index([createdAt])
   @@index([district, state])
 }
@@ -313,15 +370,15 @@ model LandListing {
   description          String?
   listingType          ListingType       @default(OPEN_BIDDING)
   status               ListingStatus     @default(DRAFT)
-  basePrice            Float
-  reservePrice         Float?
-  buyNowPrice          Float?
+  basePrice            Decimal           @db.Decimal(12, 2)
+  reservePrice         Decimal?          @db.Decimal(12, 2)
+  buyNowPrice          Decimal?          @db.Decimal(12, 2)
   minimumLeaseDuration Int
   maximumLeaseDuration Int
   startDate            DateTime
   endDate              DateTime
   totalBids            Int               @default(0)
-  highestBid           Float?
+  highestBid           Decimal?          @db.Decimal(12, 2)
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   applicationCount     Int               @default(0)
@@ -329,7 +386,7 @@ model LandListing {
   viewCount            Int               @default(0)
   auctionStatus        AuctionStatus     @default(UPCOMING)
   autoExtendMinutes    Int?              @default(5)
-  bidIncrement         Float?            @default(1000)
+  bidIncrement         Decimal?          @default(1000) @db.Decimal(10, 2)
   currentLeaderId      String?
   engagementScore      Float?
   hotnessScore         Float?
@@ -337,11 +394,12 @@ model LandListing {
   marketScore          Float?
   riskLevel            RiskLevel         @default(LOW)
   winningBidId         String?           @unique
+  version              Int               @default(0)
   applications         Application[]
   auctionEvents        AuctionEvent[]
   bids                 Bid[]
-  land                 Land              @relation(fields: [landId], references: [id], onDelete: Cascade)
-  owner                User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  land                 Land              @relation(fields: [landId], references: [id], onDelete: Restrict)
+  owner                User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   winningBid           Bid?              @relation("WinningBid", fields: [winningBidId], references: [id])
   leases               Lease[]
   analytics            ListingAnalytics?
@@ -350,6 +408,7 @@ model LandListing {
   savedBy              SavedListing[]
 
   @@index([ownerId])
+  @@index([landId, ownerId])
   @@index([status, auctionStatus, endDate])
   @@index([listingType])
   @@index([startDate, endDate])
@@ -362,14 +421,14 @@ model ListingTerms {
   id                      String           @id @default(cuid())
   listingId               String           @unique
   securityDepositRequired Boolean          @default(true)
-  depositAmount           Float?
+  depositAmount           Decimal?         @db.Decimal(10, 2)
   paymentFrequency        PaymentFrequency
   additionalTerms         String?
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
   inspectionRequired      Boolean          @default(false)
   insuranceRequired       Boolean          @default(false)
-  listing                 LandListing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing                 LandListing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
 }
 
 model ListingImage {
@@ -381,19 +440,23 @@ model ListingImage {
   createdAt DateTime     @default(now())
   sortOrder Int          @default(0)
   landId    String?
-  land      Land?        @relation(fields: [landId], references: [id], onDelete: Cascade)
-  listing   LandListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  land      Land?        @relation(fields: [landId], references: [id], onDelete: SetNull)
+  listing   LandListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
 
   @@index([listingId])
   @@index([landId])
   @@index([isPrimary])
 }
 
+// ============================================
+// BIDDING & AUCTIONS
+// ============================================
+
 model Bid {
   id        String         @id @default(cuid())
   listingId String
   farmerId  String
-  amount    Float
+  amount    Decimal        @db.Decimal(12, 2)
   status    BidStatus      @default(ACTIVE)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
@@ -402,9 +465,10 @@ model Bid {
   isWinning Boolean        @default(false)
   outbidAt  DateTime?
   sequence  Int
+  version   Int            @default(0)
   events    AuctionEvent[]
-  farmer    User           @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  listing   LandListing    @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  farmer    User           @relation(fields: [farmerId], references: [id], onDelete: Restrict)
+  listing   LandListing    @relation(fields: [listingId], references: [id], onDelete: Restrict)
   winningOf LandListing?   @relation("WinningBid")
 
   @@index([listingId])
@@ -412,6 +476,9 @@ model Bid {
   @@index([status])
   @@index([listingId, amount(sort: Desc)])
   @@index([listingId, createdAt])
+  @@index([listingId, status, amount(sort: Desc)])
+  @@index([farmerId, createdAt(sort: Desc)])
+  @@index([listingId, sequence])
 }
 
 model AuctionEvent {
@@ -422,19 +489,23 @@ model AuctionEvent {
   bidId     String?
   metadata  Json?
   createdAt DateTime    @default(now())
-  bid       Bid?        @relation(fields: [bidId], references: [id])
-  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bid       Bid?        @relation(fields: [bidId], references: [id], onDelete: SetNull)
+  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
   @@index([listingId])
   @@index([createdAt])
 }
+
+// ============================================
+// APPLICATIONS & LEASES
+// ============================================
 
 model Application {
   id           String            @id @default(cuid())
   landId       String
   farmerId     String
   listingId    String?
-  proposedRent Float?
+  proposedRent Decimal?          @db.Decimal(10, 2)
   duration     Int
   cropPlan     String?
   message      String?
@@ -443,46 +514,64 @@ model Application {
   updatedAt    DateTime          @updatedAt
   reviewNotes  String?
   reviewedAt   DateTime?
-  farmer       User              @relation(fields: [farmerId], references: [id], onDelete: Cascade)
-  land         Land              @relation(fields: [landId], references: [id], onDelete: Cascade)
-  listing      LandListing?      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  version      Int               @default(0)
+  farmer       User              @relation(fields: [farmerId], references: [id], onDelete: Restrict)
+  land         Land              @relation(fields: [landId], references: [id], onDelete: Restrict)
+  listing      LandListing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
 
   @@unique([landId, farmerId, status])
   @@index([farmerId])
   @@index([landId])
+  @@index([listingId])
   @@index([status])
   @@index([createdAt])
+  @@index([farmerId, status])
+  @@index([landId, status])
+  @@index([landId, status, createdAt(sort: Desc)])
+  @@index([listingId, status])
 }
 
 model Lease {
-  id                 String       @id @default(cuid())
+  id                 String                 @id @default(cuid())
   landId             String
   farmerId           String
   ownerId            String
   listingId          String?
-  rent               Float
-  securityDeposit    Float?
+  rent               Decimal                @db.Decimal(10, 2)
+  securityDeposit    Decimal?               @db.Decimal(10, 2)
   startDate          DateTime
   endDate            DateTime
-  status             LeaseStatus  @default(DRAFT)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  // lifecycleStatus is the CANONICAL state machine.
+  // status is a backwards-compatible simplified representation.
+  // NEVER mutate both independently. Use leaseStateMachine.transition()
+  lifecycleStatus    LeaseLifecycleStatus   @default(DRAFT)
+  status             LeaseStatus            @default(DRAFT)
+  paymentStatus      LeasePaymentStatus     @default(PENDING)
+  farmerSignedAt     DateTime?
+  ownerSignedAt      DateTime?
   signedAt           DateTime?
-  signedByFarmer     Boolean      @default(false)
-  signedByOwner      Boolean      @default(false)
-  terminationDate    DateTime?
-  terminationReason  String?
-  creditApproved     Boolean      @default(false)
-  escrowStatus       String?
-  grossContractValue Float?
-  leaseSource        LeaseSource  @default(AUCTION)
-  netOwnerReceivable Float?
-  platformFee        Float?
+  activatedAt        DateTime?
+  terminatedAt       DateTime?
+  terminatedBy       String?
+  terminationReason  TerminationReason?
+  creditApproved     Boolean                @default(false)
+  escrowStatus       EscrowStatus?
+  escrowReleasedAt   DateTime?
+  grossContractValue Decimal?               @db.Decimal(12, 2)
+  leaseSource        LeaseSource            @default(AUCTION)
+  netOwnerReceivable Decimal?               @db.Decimal(10, 2)
+  platformFee        Decimal?               @db.Decimal(8, 2)
   riskScore          Float?
-  farmer             User         @relation("FarmerLeases", fields: [farmerId], references: [id], onDelete: Cascade)
-  land               Land         @relation(fields: [landId], references: [id], onDelete: Cascade)
-  listing            LandListing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  owner              User         @relation("OwnerLeases", fields: [ownerId], references: [id], onDelete: Cascade)
+  version            Int                    @default(0)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  agreements         LeaseAgreement[]
+  events             LeaseEvent[]
+  paymentSchedule    LeasePaymentSchedule[]
+  farmer             User                   @relation("FarmerLeases", fields: [farmerId], references: [id], onDelete: Restrict)
+  land               Land                   @relation(fields: [landId], references: [id], onDelete: Restrict)
+  listing            LandListing?           @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  owner              User                   @relation("OwnerLeases", fields: [ownerId], references: [id], onDelete: Restrict)
   payments           Payment[]
   review             Review?
 
@@ -490,40 +579,162 @@ model Lease {
   @@index([ownerId])
   @@index([landId])
   @@index([status])
+  @@index([lifecycleStatus])
   @@index([startDate, endDate])
   @@index([riskScore])
+  @@index([farmerId, lifecycleStatus])
+  @@index([ownerId, lifecycleStatus])
+  @@index([landId, lifecycleStatus])
+  @@index([startDate, endDate, lifecycleStatus])
+  @@index([paymentStatus, lifecycleStatus])
 }
 
+// ============================================
+// LEASE AGREEMENTS & SIGNATURES
+// ============================================
+
+model LeaseAgreement {
+  id              String           @id @default(cuid())
+  leaseId         String
+  version         Int
+  status          AgreementStatus  @default(DRAFT)
+  templateVersion String?
+  documentUrl     String?
+  documentHash    String?
+  metadata        Json?
+  generatedAt     DateTime         @default(now())
+  finalizedAt     DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  lease           Lease            @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  signatures      LeaseSignature[]
+
+  @@unique([leaseId, version])
+  @@index([leaseId])
+  @@index([status])
+}
+
+model LeaseSignature {
+  id            String         @id @default(cuid())
+  agreementId   String
+  signerId      String
+  signerRole    UserRole
+  signedAt      DateTime
+  signatureHash String?
+  ipAddress     String?
+  userAgent     String?
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+  agreement     LeaseAgreement @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  signer        User           @relation(fields: [signerId], references: [id], onDelete: Restrict)
+
+  @@unique([agreementId, signerId])
+  @@index([agreementId])
+  @@index([signerId])
+}
+
+// ============================================
+// LEASE PAYMENT SCHEDULE (NEW)
+// ============================================
+
+model LeasePaymentSchedule {
+  id              String        @id @default(cuid())
+  leaseId         String
+  installmentNo   Int
+  paymentType     PaymentType
+  amount          Decimal       @db.Decimal(10, 2)
+  dueDate         DateTime
+  gracePeriodEnds DateTime?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  lease           Lease         @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  payments        Payment[]
+
+  @@unique([leaseId, installmentNo])
+  @@index([leaseId, status])
+  @@index([dueDate, status])
+}
+
+// ============================================
+// LEASE EVENTS (NEW)
+// ============================================
+
+model LeaseEvent {
+  id        String   @id @default(cuid())
+  leaseId   String
+  actorId   String?
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  lease     Lease    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+
+  @@index([leaseId, createdAt])
+  @@index([type, createdAt])
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
 model Payment {
-  id                String        @id @default(cuid())
+  id                String                @id @default(cuid())
+  idempotencyKey    String?               @unique
   userId            String
   leaseId           String?
-  amount            Float
-  currency          String        @default("INR")
-  status            PaymentStatus @default(PENDING)
-  providerRef       String?
-  createdAt         DateTime      @default(now())
-  dueDate           DateTime?
-  notes             String?
-  paidAt            DateTime?
-  receiptUrl        String?
-  gatewayFee        Float?
-  netAmount         Float?
-  paymentType       String?
-  platformFee       Float?
-  razorpayOrderId   String?       @unique
-  razorpayPaymentId String?
+  scheduleId        String?
+  amount            Decimal               @db.Decimal(10, 2)
+  currency          String                @default("INR")
+  status            PaymentStatus         @default(PENDING)
+  provider          PaymentProvider       @default(RAZORPAY)
+  providerRef       String?               @unique
+  razorpayOrderId   String?               @unique
+  razorpayPaymentId String?               @unique
   razorpaySignature String?
-  lease             Lease?        @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentType       PaymentType
+  gatewayFee        Decimal?              @db.Decimal(8, 2)
+  netAmount         Decimal?              @db.Decimal(10, 2)
+  platformFee       Decimal?              @db.Decimal(8, 2)
+  attempts          Int                   @default(1)
+  lastAttemptAt     DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  dueDate           DateTime?
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  notes             String?
+  receiptUrl        String?
+  metadata          Json?
+  version           Int                   @default(0)
+  lease             Lease?                @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  schedule          LeasePaymentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([leaseId])
+  @@index([scheduleId])
   @@index([status])
+  @@index([paymentType])
+  @@index([provider])
   @@index([dueDate])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
+  @@index([idempotencyKey])
+  @@index([providerRef])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([razorpayOrderId, status])
+  @@index([userId, status, createdAt(sort: Desc)])
+  @@index([leaseId, status])
+  @@index([dueDate, status])
+  @@index([paymentType, status])
 }
+
+// ============================================
+// REVIEWS & MESSAGING
+// ============================================
 
 model Review {
   id         String   @id @default(cuid())
@@ -535,9 +746,9 @@ model Review {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   response   String?
-  lease      Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Cascade)
-  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  lease      Lease    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  reviewee   User     @relation("Reviewee", fields: [revieweeId], references: [id], onDelete: Restrict)
+  reviewer   User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([revieweeId])
   @@index([rating])
@@ -551,14 +762,18 @@ model Message {
   createdAt  DateTime  @default(now())
   isRead     Boolean   @default(false)
   readAt     DateTime?
-  receiver   User      @relation("MessagesReceived", fields: [receiverId], references: [id], onDelete: Cascade)
-  sender     User      @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User      @relation("MessagesReceived", fields: [receiverId], references: [id], onDelete: Restrict)
+  sender     User      @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Restrict)
 
   @@index([senderId])
   @@index([receiverId])
   @@index([isRead])
   @@index([createdAt])
 }
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
 
 model Notification {
   id         String           @id @default(cuid())
@@ -572,12 +787,13 @@ model Notification {
   readAt     DateTime?
   entityId   String?
   entityType String?
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
   @@index([entityType, entityId])
+  @@index([userId, isRead, createdAt])
 }
 
 model ScheduledNotification {
@@ -595,19 +811,23 @@ model ScheduledNotification {
   adminId     String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  admin       User      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin       User      @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
   @@index([status, scheduledAt])
   @@index([adminId])
 }
+
+// ============================================
+// MARKETPLACE FEATURES
+// ============================================
 
 model SavedListing {
   id        String      @id @default(cuid())
   listingId String
   userId    String
   createdAt DateTime    @default(now())
-  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing   LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([listingId, userId])
   @@index([userId])
@@ -622,7 +842,7 @@ model ListingAnalytics {
   avgBidGap       Float?
   watchers        Int         @default(0)
   lastActivityAt  DateTime?
-  listing         LandListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing         LandListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
 }
 
 model MarketSubscription {
@@ -631,7 +851,7 @@ model MarketSubscription {
   filters   Json
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
 }
@@ -646,8 +866,12 @@ model Subscription {
   autoRenew   Boolean            @default(true)
   lastBilling DateTime?
   nextBilling DateTime?
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
 }
+
+// ============================================
+// DOCUMENTS & SOIL REPORTS
+// ============================================
 
 model SoilReport {
   id        String    @id @default(cuid())
@@ -659,7 +883,7 @@ model SoilReport {
   reportUrl String?
   testedAt  DateTime?
   testedBy  String?
-  land      Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+  land      Land      @relation(fields: [landId], references: [id], onDelete: Restrict)
 
   @@index([landId])
   @@index([testedAt])
@@ -674,13 +898,17 @@ model Document {
   createdAt DateTime @default(now())
   size      Int?
   type      String?
-  land      Land?    @relation(fields: [landId], references: [id], onDelete: Cascade)
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  land      Land?    @relation(fields: [landId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([landId])
   @@index([type])
 }
+
+// ============================================
+// AUDIT & LOGGING
+// ============================================
 
 model AuditLog {
   id        String   @id @default(cuid())
@@ -692,13 +920,17 @@ model AuditLog {
   entityId  String?
   ipAddress String?
   userAgent String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([action])
   @@index([entity, entityId])
   @@index([createdAt])
 }
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum UserRole {
   FARMER
@@ -725,6 +957,13 @@ enum LandType {
   GREENHOUSE
 }
 
+enum LandAvailabilityStatus {
+  AVAILABLE
+  RESERVED
+  LEASED
+  UNAVAILABLE
+}
+
 enum ApplicationStatus {
   PENDING
   APPROVED
@@ -743,6 +982,56 @@ enum LeaseStatus {
   RENEWED
 }
 
+// CANONICAL state machine for Lease.
+// status is a backwards-compatible simplified representation.
+// NEVER mutate both independently. Use leaseStateMachine.transition()
+enum LeaseLifecycleStatus {
+  DRAFT
+  PENDING_SIGNATURES
+  PENDING_FARMER_SIGNATURE
+  PENDING_OWNER_SIGNATURE
+  PENDING_PAYMENT
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  RENEWED
+  DISPUTED
+}
+
+enum LeasePaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  DEFAULTED
+}
+
+enum EscrowStatus {
+  HELD
+  PARTIALLY_RELEASED
+  RELEASED
+  REFUNDED
+  DISPUTED
+}
+
+enum TerminationReason {
+  MUTUAL_AGREEMENT
+  PAYMENT_DEFAULT
+  CONTRACT_BREACH
+  LAND_UNAVAILABLE
+  FORCE_MAJEURE
+  OTHER
+}
+
+enum AgreementStatus {
+  DRAFT
+  PENDING_SIGNATURES
+  PARTIALLY_SIGNED
+  SIGNED
+  VOID
+  EXPIRED
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -751,6 +1040,18 @@ enum PaymentStatus {
   PROCESSING
   PARTIALLY_REFUNDED
   CANCELLED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum PaymentType {
+  SECURITY_DEPOSIT
+  RENT
+  LEASE_PAYMENT
+  PLATFORM_FEE
+  REFUND
 }
 
 enum SubscriptionStatus {

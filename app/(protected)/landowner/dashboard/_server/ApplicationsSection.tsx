@@ -1,4 +1,5 @@
 // app/(protected)/landowner/dashboard/_server/ApplicationsSection.tsx
+
 import { prisma } from "@/lib/prisma";
 import {
   RecentApplications,
@@ -22,11 +23,13 @@ export async function ApplicationsSection({
     where: {
       land: {
         landowner: {
-          userId: user.id  // landowner -> userId
-        }
-      }
+          userId: user.id,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: {
+      createdAt: "desc",
+    },
     take: 5,
     select: {
       id: true,
@@ -47,13 +50,15 @@ export async function ApplicationsSection({
     },
   });
 
-  console.log(`📊 Found ${apps.length} applications for user ${user.id}`);
+  console.log(
+    `📊 Found ${apps.length} applications for user ${user.id}`,
+  );
 
   const mapped: RecentApplication[] = apps.map((a) => ({
     id: a.id,
     farmerName: a.farmer.name,
     farmerImage: a.farmer.imageUrl,
-    proposedRent: a.proposedRent,
+    proposedRent: a.proposedRent?.toString() ?? null,
     status: a.status as RecentApplication["status"],
     createdAt: a.createdAt.toISOString(),
     landTitle: a.land.title,

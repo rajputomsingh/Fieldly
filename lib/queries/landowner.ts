@@ -1,3 +1,4 @@
+// lib/queries/landowner.ts
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
 
@@ -27,7 +28,6 @@ export interface LandWithDetails {
 
   applicationsCount: number;
 
-  /** NEW */
   mapUrl: string | null;
   embedMapUrl: string | null;
 
@@ -61,9 +61,6 @@ export const getLandownerDashboardData = cache(
     const pageSize = 6;
     const skip = (page - 1) * pageSize;
 
-    /**
-     SOFT DELETE FILTER
-     */
     const baseLandWhere = {
       landownerId: profileId,
       isArchived: false,
@@ -114,8 +111,8 @@ export const getLandownerDashboardData = cache(
           size: true,
           landType: true,
           village: true,
-          latitude: true,   // NEW
-          longitude: true,  // NEW
+          latitude: true,
+          longitude: true,
           expectedRentMin: true,
           expectedRentMax: true,
           createdAt: true,
@@ -137,9 +134,6 @@ export const getLandownerDashboardData = cache(
       }),
     ]);
 
-    /**
-     AREA CALCULATION
-     */
     const leasedLandIds = new Set(activeLeases.map((l) => l.landId));
 
     let leasedArea = 0;
@@ -150,7 +144,7 @@ export const getLandownerDashboardData = cache(
       else availableArea += land.size;
     }
 
-    const totalRevenue = revenueAgg._sum.amount ?? 0;
+    const totalRevenue = revenueAgg._sum.amount?.toNumber() ?? 0;
 
     const stats = {
       totalLands,
@@ -162,9 +156,6 @@ export const getLandownerDashboardData = cache(
       availableArea,
     };
 
-    /**
-     FORMAT TABLE DATA
-     */
     const landsFormatted: LandWithDetails[] = lands.map((l) => {
       const status: "LEASED" | "AVAILABLE" =
         l.leases.length > 0 ? "LEASED" : "AVAILABLE";
@@ -177,11 +168,10 @@ export const getLandownerDashboardData = cache(
         status,
         location: l.village ?? "Location not specified",
 
-        expectedRentMin: l.expectedRentMin,
-        expectedRentMax: l.expectedRentMax,
+        expectedRentMin: l.expectedRentMin?.toNumber() ?? null,
+        expectedRentMax: l.expectedRentMax?.toNumber() ?? null,
         applicationsCount: l._count.applications,
 
-        /** NEW MAP URLS */
         mapUrl: getGoogleMapsUrl(l.latitude, l.longitude),
         embedMapUrl: getGoogleEmbedUrl(l.latitude, l.longitude),
 
@@ -189,7 +179,7 @@ export const getLandownerDashboardData = cache(
           ? {
               id: l.leases[0].id,
               farmerName: l.leases[0].farmer.name,
-              rent: l.leases[0].rent,
+              rent: l.leases[0].rent?.toNumber() ?? 0,
               startDate: l.leases[0].startDate,
               endDate: l.leases[0].endDate,
             }
@@ -199,9 +189,6 @@ export const getLandownerDashboardData = cache(
       };
     });
 
-    /**
-     SIMPLE TREND MOCK
-     */
     const revenueTrend = Array.from({ length: 6 }).map((_, i) => ({
       month: `M${i + 1}`,
       revenue: totalRevenue / 6,

@@ -205,10 +205,10 @@ export class ApplicationService {
 
     // 6. Rent validation - WARNING ONLY (don't block submission)
     if (data.proposedRent) {
-      if (land.expectedRentMin && data.proposedRent < land.expectedRentMin) {
+      if (land.expectedRentMin && data.proposedRent < land.expectedRentMin?.toNumber()) {
         console.log(`⚠️ Rent below minimum: ${data.proposedRent} < ${land.expectedRentMin}`);
       }
-      if (land.expectedRentMax && data.proposedRent > land.expectedRentMax) {
+      if (land.expectedRentMax && data.proposedRent > land.expectedRentMax?.toNumber()) {
         console.log(`⚠️ Rent above maximum: ${data.proposedRent} > ${land.expectedRentMax}`);
       }
     }
@@ -340,7 +340,7 @@ export class ApplicationService {
       });
 
       if (data.status === "APPROVED") {
-        const rent = application.proposedRent || application.land.expectedRentMin || 0;
+        const rent = application.proposedRent?.toNumber() ?? application.land.expectedRentMin?.toNumber() ?? 0;
 
         await tx.lease.create({
           data: {
