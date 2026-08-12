@@ -186,12 +186,30 @@ DROP INDEX "AdminSession_token_key";
 -- DropIndex
 DROP INDEX IF EXISTS "LandListing_status_idx";
 
--- AlterTable
-ALTER TABLE "AdminSession" DROP COLUMN "token",
-ADD COLUMN     "deviceInfo" JSONB,
-ADD COLUMN     "ips" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN     "revokedReason" TEXT,
-ADD COLUMN     "tokenHash" TEXT NOT NULL;
+ALTER TABLE "AdminSession"
+ADD COLUMN "deviceInfo" JSONB,
+ADD COLUMN "ips" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN "revokedReason" TEXT,
+ADD COLUMN "tokenHash" TEXT;
+
+-- Existing sessions are invalidated during the token -> tokenHash migration.
+-- Generate a unique placeholder hash for each existing session.
+UPDATE "AdminSession"
+SET "tokenHash" = md5(
+  "id"::text
+  || ':'
+  || COALESCE("token", '')
+  || ':'
+  || clock_timestamp()::text
+  || ':'
+  || random()::text
+);
+
+ALTER TABLE "AdminSession"
+ALTER COLUMN "tokenHash" SET NOT NULL;
+
+ALTER TABLE "AdminSession"
+DROP COLUMN "token";
 
 -- AlterTable
 ALTER TABLE "Application" ADD COLUMN     "version" INTEGER NOT NULL DEFAULT 0,
