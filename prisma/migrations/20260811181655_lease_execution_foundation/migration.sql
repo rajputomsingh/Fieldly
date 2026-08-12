@@ -184,7 +184,7 @@ DROP INDEX "AdminSession_token_idx";
 DROP INDEX "AdminSession_token_key";
 
 -- DropIndex
-DROP INDEX "LandListing_status_idx";
+DROP INDEX IF EXISTS "LandListing_status_idx";
 
 -- AlterTable
 ALTER TABLE "AdminSession" DROP COLUMN "token",
