@@ -78,9 +78,14 @@ export default async function ListingPage({ params }: PageProps) {
 
   if (!listing) notFound();
 
-  // Serialize dates
+  // Serialize dates and convert Decimals to numbers
   const serializedListing = {
     ...listing,
+    basePrice: listing.basePrice?.toNumber() ?? 0,
+    reservePrice: listing.reservePrice?.toNumber() ?? null,
+    buyNowPrice: listing.buyNowPrice?.toNumber() ?? null,
+    highestBid: listing.highestBid?.toNumber() ?? null,
+    bidIncrement: listing.bidIncrement?.toNumber() ?? 0,
     endDate: listing.endDate.toISOString(),
     startDate: listing.startDate.toISOString(),
     createdAt: listing.createdAt.toISOString(),
@@ -89,6 +94,9 @@ export default async function ListingPage({ params }: PageProps) {
     lastBidAt: listing.lastBidAt?.toISOString() || null,
     land: {
       ...listing.land,
+      depositAmount: listing.land.depositAmount?.toNumber() ?? null,
+      expectedRentMin: listing.land.expectedRentMin?.toNumber() ?? null,
+      expectedRentMax: listing.land.expectedRentMax?.toNumber() ?? null,
       createdAt: listing.land.createdAt.toISOString(),
       updatedAt: listing.land.updatedAt.toISOString(),
       soilReports: listing.land.soilReports?.map(r => ({ ...r, createdAt: r.createdAt.toISOString(), testedAt: r.testedAt?.toISOString() || null })) || [],
@@ -96,9 +104,9 @@ export default async function ListingPage({ params }: PageProps) {
       images: listing.land.images || [],
     },
     owner: { ...listing.owner, createdAt: listing.owner.createdAt.toISOString(), updatedAt: listing.owner.updatedAt.toISOString() },
-    bids: listing.bids?.map(b => ({ ...b, createdAt: b.createdAt.toISOString() })) || [],
+    bids: listing.bids?.map(b => ({ ...b, amount: b.amount?.toNumber() ?? 0, createdAt: b.createdAt.toISOString() })) || [],
     images: listing.images || [],
-    terms: listing.terms ? { ...listing.terms, createdAt: listing.terms.createdAt.toISOString(), updatedAt: listing.terms.updatedAt.toISOString() } : null,
+    terms: listing.terms ? { ...listing.terms, depositAmount: listing.terms.depositAmount?.toNumber() ?? null, createdAt: listing.terms.createdAt.toISOString(), updatedAt: listing.terms.updatedAt.toISOString() } : null,
     analytics: listing.analytics ? { ...listing.analytics, lastActivityAt: listing.analytics.lastActivityAt?.toISOString() || null } : null,
     _count: { bids: listing._count?.bids || 0, savedBy: listing._count?.savedBy || 0, applications: listing._count?.applications || 0 },
   };

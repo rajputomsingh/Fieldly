@@ -108,7 +108,7 @@ const ActivityItem = memo(function ActivityItem({
             <>
               <span className="opacity-40">•</span>
               <span className="font-semibold text-[#b7cf8a] tracking-tight">
-                ₹{activity.amount.toLocaleString("en-IN")}
+                ₹{Number(activity.amount).toLocaleString("en-IN")}
               </span>
             </>
           )}

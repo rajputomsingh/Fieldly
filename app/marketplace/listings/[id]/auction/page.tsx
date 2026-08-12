@@ -86,19 +86,25 @@ export default async function AuctionPage({ params }: PageProps) {
     notFound()
   }
 
-  // Convert Date objects to plain objects for client component
+  // Convert Date and Decimal objects to plain objects for client component
   const serializedData = {
     ...auctionData,
+    basePrice: auctionData.basePrice?.toNumber() ?? 0,
+    reservePrice: auctionData.reservePrice?.toNumber() ?? null,
+    bidIncrement: auctionData.bidIncrement?.toNumber() ?? 0,
+    highestBid: auctionData.highestBid?.toNumber() ?? null,
     endDate: auctionData.endDate.toISOString(),
     bids: auctionData.bids?.map(bid => ({
       ...bid,
+      amount: bid.amount?.toNumber() ?? 0,
       createdAt: bid.createdAt.toISOString(),
     })) || [],
     winningBid: auctionData.winningBid ? {
       ...auctionData.winningBid,
+      amount: auctionData.winningBid.amount?.toNumber() ?? 0,
     } : null,
     _count: auctionData._count || { bids: 0 }
   }
 
   return <AuctionRoomClient listingId={id} initialData={serializedData} />
-}   
+}

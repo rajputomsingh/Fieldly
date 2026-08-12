@@ -7,7 +7,7 @@ export const getLandownerProfileData = cache(async (userId: string) => {
     where: { id: userId },
     select: {
       id: true,
-      clerkUserId: true,  
+      clerkUserId: true,
       name: true,
       email: true,
       imageUrl: true,
@@ -15,7 +15,7 @@ export const getLandownerProfileData = cache(async (userId: string) => {
       state: true,
       district: true,
       createdAt: true,
-      role: true,         
+      role: true,
 
       landownerProfile: {
         select: {
@@ -82,12 +82,12 @@ export const getLandownerProfileData = cache(async (userId: string) => {
 
   const totalListings = user.listingsOwned.length;
   const activeListings = user.listingsOwned.filter(
-    (l) => l.auctionStatus === "LIVE" || l.auctionStatus === "UPCOMING"
+    (l) => l.auctionStatus === "LIVE" || l.auctionStatus === "UPCOMING",
   ).length;
 
   const totalRevenue = user.leasesAsOwner.reduce(
-    (acc, l) => acc + (l.rent || 0),
-    0
+    (acc, l) => acc + (l.rent?.toNumber() ?? 0),
+    0,
   );
 
   const avgRating =
@@ -134,8 +134,10 @@ export const getLandownerProfileData = cache(async (userId: string) => {
 
     listings: user.listingsOwned.map((listing) => ({
       ...listing,
-      isUrgent: listing.endDate 
-        ? new Date(listing.endDate).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000
+      basePrice: listing.basePrice?.toNumber() ?? 0,
+      isUrgent: listing.endDate
+        ? new Date(listing.endDate).getTime() - new Date().getTime() <
+          7 * 24 * 60 * 60 * 1000
         : false,
       maxBids: 50,
     })),

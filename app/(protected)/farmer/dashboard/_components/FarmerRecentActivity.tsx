@@ -191,7 +191,7 @@ export function FarmerRecentActivity({ activities }: RecentActivityProps) {
                     
                     {activity.amount && (
                       <p className="text-sm font-semibold text-green-600">
-                        ₹{activity.amount.toLocaleString()}
+                        ₹{Number(activity.amount).toLocaleString()}
                       </p>
                     )}
                     

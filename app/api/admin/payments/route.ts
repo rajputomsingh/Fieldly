@@ -11,7 +11,17 @@ import { logDetailedAction } from "@/lib/server/audit-logger";
 const paymentQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED", "PROCESSING", "PARTIALLY_REFUNDED", "CANCELLED"]).optional(),
+  status: z
+    .enum([
+      "PENDING",
+      "SUCCESS",
+      "FAILED",
+      "REFUNDED",
+      "PROCESSING",
+      "PARTIALLY_REFUNDED",
+      "CANCELLED",
+    ])
+    .optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   search: z.string().optional(),
@@ -29,17 +39,19 @@ const json = <T>(data: T, init?: ResponseInit): NextResponse<T> => {
 };
 
 // ============= GET /api/admin/payments =============
-export async function GET(
-  req: NextRequest
-): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const admin = await requireAdmin();
     const headersList = await headers();
-    
+
     const searchParams = req.nextUrl.searchParams;
     const queryParams = {
-      page: searchParams.get("page") ? parseInt(searchParams.get("page")!) : undefined,
-      limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined,
+      page: searchParams.get("page")
+        ? parseInt(searchParams.get("page")!)
+        : undefined,
+      limit: searchParams.get("limit")
+        ? parseInt(searchParams.get("limit")!)
+        : undefined,
       status: searchParams.get("status") || undefined,
       startDate: searchParams.get("startDate") || undefined,
       endDate: searchParams.get("endDate") || undefined,
@@ -51,16 +63,16 @@ export async function GET(
 
     // Build where clause
     const where: Record<string, unknown> = {};
-    
+
     if (status) where.status = status;
-    
+
     if (startDate || endDate) {
       const dateFilter: Record<string, Date> = {};
       if (startDate) dateFilter.gte = new Date(startDate);
       if (endDate) dateFilter.lte = new Date(endDate);
       where.createdAt = dateFilter;
     }
-    
+
     if (search) {
       where.OR = [
         { razorpayOrderId: { contains: search, mode: "insensitive" } },
@@ -112,17 +124,23 @@ export async function GET(
     stats.forEach((s) => {
       statusStats[s.status] = {
         count: s._count,
-        amount: s._sum.amount || 0,
+
+        amount: s._sum.amount?.toNumber() ?? 0,
       };
     });
 
     const totalRevenue = stats
       .filter((s) => s.status === "SUCCESS")
-      .reduce((sum, s) => sum + (s._sum.netAmount || s._sum.amount || 0), 0);
+      .reduce(
+        (sum, s) =>
+          sum +
+          (s._sum.netAmount?.toNumber() ?? s._sum.amount?.toNumber() ?? 0),
+        0,
+      );
 
     const pendingAmount = stats
       .filter((s) => s.status === "PENDING" || s.status === "PROCESSING")
-      .reduce((sum, s) => sum + (s._sum.amount || 0), 0);
+      .reduce((sum, s) => sum + (s._sum.amount?.toNumber() ?? 0), 0);
 
     // Log the view action
     await logDetailedAction({
@@ -154,30 +172,25 @@ export async function GET(
     });
   } catch (error) {
     console.error("Payments fetch error:", error);
-    
+
     if (error instanceof z.ZodError) {
       return json(
         { error: "Invalid query parameters", details: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
-    return json(
-      { error: "Failed to fetch payments" },
-      { status: 500 }
-    );
+
+    return json({ error: "Failed to fetch payments" }, { status: 500 });
   }
 }
 
 // ============= POST /api/admin/payments/refund =============
-export async function POST(
-  req: NextRequest
-): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const admin = await requireAdmin();
     const headersList = await headers();
     const body = await req.json();
-    
+
     const validated = processRefundSchema.parse(body);
     const { paymentId, amount, reason } = validated;
 
@@ -192,23 +205,23 @@ export async function POST(
     if (payment.status !== "SUCCESS") {
       return json(
         { error: "Only successful payments can be refunded" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (amount > payment.amount) {
+    if (amount > (payment.amount?.toNumber() ?? 0)) {
       return json(
         { error: "Refund amount cannot exceed payment amount" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const isFullRefund = amount >= payment.amount;
+    const isFullRefund = amount >= (payment.amount?.toNumber() ?? 0);
     const newStatus = isFullRefund ? "REFUNDED" : "PARTIALLY_REFUNDED";
 
     const updatedPayment = await prisma.payment.update({
       where: { id: paymentId },
-      data: { 
+      data: {
         status: newStatus,
         notes: `Refund processed: ${reason}`,
       },
@@ -220,7 +233,10 @@ export async function POST(
       entity: "PAYMENT",
       entityId: paymentId,
       changes: {
-        before: { status: payment.status, amount: payment.amount },
+        before: {
+          status: payment.status,
+          amount: payment.amount?.toNumber() ?? 0,
+        },
         after: { status: newStatus, refundedAmount: amount },
       },
       metadata: {
@@ -238,18 +254,15 @@ export async function POST(
     });
   } catch (error) {
     console.error("Refund processing error:", error);
-    
+
     if (error instanceof z.ZodError) {
       return json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
-    return json(
-      { error: "Failed to process refund" },
-      { status: 500 }
-    );
+
+    return json({ error: "Failed to process refund" }, { status: 500 });
   }
 }
 

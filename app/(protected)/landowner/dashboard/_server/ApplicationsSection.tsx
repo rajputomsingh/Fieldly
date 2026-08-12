@@ -1,15 +1,12 @@
 // app/(protected)/landowner/dashboard/_server/ApplicationsSection.tsx
+
 import { prisma } from "@/lib/prisma";
 import {
   RecentApplications,
   type RecentApplication,
 } from "../_components/RecentApplications";
 
-export async function ApplicationsSection({
-  userId,
-}: {
-  userId: string;
-}) {
+export async function ApplicationsSection({ userId }: { userId: string }) {
   // Get the database user ID from Clerk userId
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId },
@@ -22,11 +19,13 @@ export async function ApplicationsSection({
     where: {
       land: {
         landowner: {
-          userId: user.id  // landowner -> userId
-        }
-      }
+          userId: user.id,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: {
+      createdAt: "desc",
+    },
     take: 5,
     select: {
       id: true,
@@ -53,7 +52,13 @@ export async function ApplicationsSection({
     id: a.id,
     farmerName: a.farmer.name,
     farmerImage: a.farmer.imageUrl,
-    proposedRent: a.proposedRent,
+    proposedRent: a.proposedRent
+      ? new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+          maximumFractionDigits: 0,
+        }).format(a.proposedRent.toNumber())
+      : null,
     status: a.status as RecentApplication["status"],
     createdAt: a.createdAt.toISOString(),
     landTitle: a.land.title,

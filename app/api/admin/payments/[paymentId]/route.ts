@@ -14,7 +14,17 @@ interface RouteParams {
 
 // ============= VALIDATION SCHEMAS =============
 const updatePaymentSchema = z.object({
-  status: z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED", "PROCESSING", "PARTIALLY_REFUNDED", "CANCELLED"]).optional(),
+  status: z
+    .enum([
+      "PENDING",
+      "SUCCESS",
+      "FAILED",
+      "REFUNDED",
+      "PROCESSING",
+      "PARTIALLY_REFUNDED",
+      "CANCELLED",
+    ])
+    .optional(),
   notes: z.string().max(500).optional(),
 });
 
@@ -26,12 +36,12 @@ const json = <T>(data: T, init?: ResponseInit): NextResponse<T> => {
 // ============= GET /api/admin/payments/[paymentId] =============
 export async function GET(
   req: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
     const admin = await requireAdmin();
     const headersList = await headers();
-    
+
     const { paymentId } = await params;
 
     const payment = await prisma.payment.findUnique({
@@ -112,35 +122,32 @@ export async function GET(
       entity: "PAYMENT",
       entityId: paymentId,
       metadata: {
-        paymentAmount: payment.amount,
+        paymentAmount: payment.amount?.toNumber() ?? 0,
         paymentStatus: payment.status,
         ipAddress: headersList.get("x-forwarded-for") || "unknown",
       },
     });
 
-    return json({ 
+    return json({
       payment,
       auditLogs,
     });
   } catch (error) {
     console.error("Payment fetch error:", error);
-    return json(
-      { error: "Failed to fetch payment" },
-      { status: 500 }
-    );
+    return json({ error: "Failed to fetch payment" }, { status: 500 });
   }
 }
 
 // ============= PATCH /api/admin/payments/[paymentId] =============
 export async function PATCH(
   req: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
     const admin = await requireAdmin();
     const headersList = await headers();
     const body = await req.json();
-    
+
     const { paymentId } = await params;
     const validated = updatePaymentSchema.parse(body);
 
@@ -161,10 +168,10 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = {};
-    
+
     if (validated.status) updateData.status = validated.status;
     if (validated.notes) updateData.notes = validated.notes;
-    
+
     // If marking as paid, set paidAt
     if (validated.status === "SUCCESS") {
       updateData.paidAt = new Date();
@@ -221,7 +228,7 @@ export async function PATCH(
         after: { status: updatedPayment.status },
       },
       metadata: {
-        paymentAmount: currentPayment.amount,
+        paymentAmount: currentPayment.amount?.toNumber() ?? 0,
         ipAddress: headersList.get("x-forwarded-for") || "unknown",
       },
     });
@@ -233,40 +240,43 @@ export async function PATCH(
     });
   } catch (error) {
     console.error("Payment update error:", error);
-    
+
     if (error instanceof z.ZodError) {
       return json(
         { error: "Validation failed", details: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
-    return json(
-      { error: "Failed to update payment" },
-      { status: 500 }
-    );
+
+    return json({ error: "Failed to update payment" }, { status: 500 });
   }
 }
 
 // ============= POST /api/admin/payments/[paymentId]/refund =============
 export async function POST(
   req: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
     const admin = await requireAdmin();
     const headersList = await headers();
     const body = await req.json();
-    
+
     const { paymentId } = await params;
     const { amount, reason } = body;
 
     if (!amount || amount <= 0) {
-      return json({ error: "Valid refund amount is required" }, { status: 400 });
+      return json(
+        { error: "Valid refund amount is required" },
+        { status: 400 },
+      );
     }
 
     if (!reason || reason.length < 10) {
-      return json({ error: "Refund reason is required (min 10 characters)" }, { status: 400 });
+      return json(
+        { error: "Refund reason is required (min 10 characters)" },
+        { status: 400 },
+      );
     }
 
     const payment = await prisma.payment.findUnique({
@@ -289,14 +299,14 @@ export async function POST(
     if (payment.status !== "SUCCESS") {
       return json(
         { error: "Only successful payments can be refunded" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (amount > payment.amount) {
       return json(
         { error: "Refund amount cannot exceed payment amount" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -305,9 +315,9 @@ export async function POST(
 
     const updatedPayment = await prisma.payment.update({
       where: { id: paymentId },
-      data: { 
+      data: {
         status: newStatus,
-        notes: payment.notes 
+        notes: payment.notes
           ? `${payment.notes}\nRefund processed: ${reason}`
           : `Refund processed: ${reason}`,
       },
@@ -324,7 +334,7 @@ export async function POST(
           refundAmount: amount,
           isFullRefund,
           reason,
-          originalAmount: payment.amount,
+          originalAmount: payment.amount?.toNumber() ?? 0,
           processedBy: admin.name,
         },
         ipAddress: headersList.get("x-forwarded-for") || "unknown",
@@ -338,7 +348,10 @@ export async function POST(
       entity: "PAYMENT",
       entityId: paymentId,
       changes: {
-        before: { status: payment.status, amount: payment.amount },
+        before: {
+          status: payment.status,
+          amount: payment.amount?.toNumber() ?? 0,
+        },
         after: { status: newStatus, refundedAmount: amount },
       },
       metadata: {
@@ -357,10 +370,7 @@ export async function POST(
     });
   } catch (error) {
     console.error("Refund processing error:", error);
-    return json(
-      { error: "Failed to process refund" },
-      { status: 500 }
-    );
+    return json({ error: "Failed to process refund" }, { status: 500 });
   }
 }
 

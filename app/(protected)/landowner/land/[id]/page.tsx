@@ -83,6 +83,11 @@ async function getLand(landId: string, userId: string) {
     description: land.description, // Keep as is - it's already string | null
     listings: land.listings.map((listing) => ({
       ...listing,
+      basePrice: listing.basePrice?.toNumber() ?? 0,
+      reservePrice: listing.reservePrice?.toNumber() ?? null,
+      buyNowPrice: listing.buyNowPrice?.toNumber() ?? null,
+      highestBid: listing.highestBid?.toNumber() ?? null,
+      bidIncrement: listing.bidIncrement?.toNumber() ?? 0,
       startDate: listing.startDate?.toISOString() || null,
       endDate: listing.endDate?.toISOString() || null,
       _count: {
@@ -90,8 +95,14 @@ async function getLand(landId: string, userId: string) {
         savedBy: listing._count?.savedBy || 0,
       },
     })),
+    
     leases: land.leases.map((lease) => ({
       ...lease,
+      rent: lease.rent?.toNumber() ?? 0,
+      securityDeposit: lease.securityDeposit?.toNumber() ?? null,
+      grossContractValue: lease.grossContractValue?.toNumber() ?? null,
+      netOwnerReceivable: lease.netOwnerReceivable?.toNumber() ?? null,
+      platformFee: lease.platformFee?.toNumber() ?? null,
       startDate: lease.startDate.toISOString(),
       endDate: lease.endDate.toISOString(),
       farmer: lease.farmer
@@ -101,6 +112,7 @@ async function getLand(landId: string, userId: string) {
           }
         : null,
     })),
+
     documents: land.documents.map((doc) => ({
       ...doc,
       createdAt: doc.createdAt?.toISOString() || null,
@@ -189,8 +201,8 @@ export default async function LandDetailPage({
             size={land.size}
             soilType={land.soilType}
             waterSource={land.waterSource}
-            expectedRentMin={land.expectedRentMin}
-            expectedRentMax={land.expectedRentMax}
+            expectedRentMin={land.expectedRentMin?.toNumber() ?? null}
+            expectedRentMax={land.expectedRentMax?.toNumber() ?? null}
           />
 
           {/* Features Section */}

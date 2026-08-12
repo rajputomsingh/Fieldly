@@ -12,13 +12,18 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { motion } from "framer-motion";
 import { Clock } from "lucide-react";
 
-export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED" | "UNDER_REVIEW" | "WITHDRAWN";
+export type ApplicationStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "UNDER_REVIEW"
+  | "WITHDRAWN";
 
 export interface RecentApplication {
   id: string;
   farmerName: string;
   farmerImage?: string | null;
-  proposedRent?: number | null;
+  proposedRent?: string | null;
   status: ApplicationStatus;
   createdAt: string;
   landTitle?: string;
@@ -143,7 +148,7 @@ export const RecentApplications = memo(function RecentApplications({
                       Rent:{" "}
                       {app.proposedRent != null ? (
                         <span className="font-medium text-[#b7cf8a]">
-                          ₹{app.proposedRent.toLocaleString("en-IN")}
+                          ₹{Number(app.proposedRent).toLocaleString("en-IN")}
                         </span>
                       ) : (
                         <span className="text-gray-400">—</span>

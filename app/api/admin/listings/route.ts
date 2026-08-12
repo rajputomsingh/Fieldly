@@ -18,69 +18,83 @@ export async function GET(req: NextRequest) {
     const listingType = searchParams.get("listingType");
     const search = searchParams.get("search");
     const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as
+      | "asc"
+      | "desc";
 
     // Build where clause with proper types
     const where: Prisma.LandListingWhereInput = {};
-    
+
     if (status && status !== "all") {
       where.status = status as ListingStatus;
     }
-    
+
     if (listingType && listingType !== "all") {
       where.listingType = listingType as ListingType;
     }
-    
+
     if (search) {
       where.OR = [
         { title: { contains: search, mode: "insensitive" as const } },
         { description: { contains: search, mode: "insensitive" as const } },
-        { land: { village: { contains: search, mode: "insensitive" as const } } },
-        { land: { district: { contains: search, mode: "insensitive" as const } } },
+        {
+          land: { village: { contains: search, mode: "insensitive" as const } },
+        },
+        {
+          land: {
+            district: { contains: search, mode: "insensitive" as const },
+          },
+        },
       ];
     }
 
     const allowedSortFields = ["title", "basePrice", "status", "createdAt"];
-    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const validSortBy = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : "createdAt";
 
-    const [listings, total, stats, activeBidsCount, pendingReviewsCount] = await Promise.all([
-      prisma.landListing.findMany({
-        where,
-        include: {
-          land: {
-            select: {
-              size: true,
-              landType: true,
-              village: true,
-              district: true,
+    const [listings, total, stats, activeBidsCount, pendingReviewsCount] =
+      await Promise.all([
+        prisma.landListing.findMany({
+          where,
+          include: {
+            land: {
+              select: {
+                size: true,
+                landType: true,
+                village: true,
+                district: true,
+              },
+            },
+            owner: {
+              select: { name: true, email: true },
+            },
+            _count: {
+              select: { applications: true, bids: true },
             },
           },
-          owner: {
-            select: { name: true, email: true },
-          },
-          _count: {
-            select: { applications: true, bids: true },
-          },
-        },
-        orderBy: { [validSortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.landListing.count({ where }),
-      prisma.landListing.groupBy({
-        by: ["status"],
-        where,
-        _count: true,
-      }),
-      prisma.bid.count({
-        where: { status: "ACTIVE" },
-      }),
-      prisma.landListing.count({
-        where: { status: "PENDING_APPROVAL" },
-      }),
-    ]);
+          orderBy: { [validSortBy]: sortOrder },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.landListing.count({ where }),
+        prisma.landListing.groupBy({
+          by: ["status"],
+          where,
+          _count: true,
+        }),
+        prisma.bid.count({
+          where: { status: "ACTIVE" },
+        }),
+        prisma.landListing.count({
+          where: { status: "PENDING_APPROVAL" },
+        }),
+      ]);
 
-    const totalValue = listings.reduce((sum, l) => sum + (l.basePrice || 0), 0);
+    const totalValue = listings.reduce(
+      (sum, l) => sum + (l.basePrice?.toNumber() ?? 0),
+      0,
+    );
 
     await logDetailedAction({
       adminId: admin.id,
@@ -118,8 +132,11 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Listings fetch error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch listings" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch listings",
+      },
+      { status: 500 },
     );
   }
 }
@@ -132,7 +149,10 @@ export async function PATCH(req: NextRequest) {
     const { listingId, status, reason } = await req.json();
 
     if (!listingId) {
-      return NextResponse.json({ error: "Listing ID required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Listing ID required" },
+        { status: 400 },
+      );
     }
 
     const currentListing = await prisma.landListing.findUnique({
@@ -193,7 +213,7 @@ export async function PATCH(req: NextRequest) {
     console.error("Listing update error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Update failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
