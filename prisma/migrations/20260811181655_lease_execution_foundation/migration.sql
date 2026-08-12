@@ -447,7 +447,7 @@ CREATE INDEX "Land_availabilityStatus_idx" ON "Land"("availabilityStatus");
 CREATE INDEX "LandListing_landId_ownerId_idx" ON "LandListing"("landId", "ownerId");
 
 -- CreateIndex
-CREATE INDEX "LandListing_status_auctionStatus_endDate_idx" ON "LandListing"("status", "auctionStatus", "endDate");
+CREATE INDEX IF NOT EXISTS "LandListing_status_auctionStatus_endDate_idx" ON "LandListing"("status", "auctionStatus", "endDate");
 
 -- CreateIndex
 CREATE INDEX "Lease_lifecycleStatus_idx" ON "Lease"("lifecycleStatus");
