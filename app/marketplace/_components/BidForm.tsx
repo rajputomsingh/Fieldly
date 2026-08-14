@@ -1,4 +1,4 @@
-// app/(marketplace)/_components/BidForm.tsx
+// app/marketplace/_components/BidForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-// EXPORT this interface
 export interface BidFormProps {
   minBid: number;
   bidIncrement: number;
@@ -24,26 +23,30 @@ export function BidForm({
   isLive,
   loading,
   onSubmit,
-}: BidFormProps) {
+}: BidFormProps): React.ReactElement {
   const [bidAmount, setBidAmount] = useState("");
   const [isAutoBid, setIsAutoBid] = useState(false);
   const { toast } = useToast();
 
+  // Ensure numbers
+  const safeMinBid = Number(minBid) || 0;
+  const safeIncrement = Number(bidIncrement) || 1000;
+
   const quickBidOptions = [
-    minBid,
-    minBid + bidIncrement * 2,
-    minBid + bidIncrement * 5,
-    minBid + bidIncrement * 10,
+    safeMinBid,
+    safeMinBid + safeIncrement * 2,
+    safeMinBid + safeIncrement * 5,
+    safeMinBid + safeIncrement * 10,
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const amount = parseFloat(bidAmount);
-    if (isNaN(amount) || amount < minBid) {
+    if (isNaN(amount) || amount < safeMinBid) {
       toast({
         title: "Invalid bid amount",
-        description: `Minimum bid is ${formatCurrency(minBid)}`,
+        description: `Minimum bid is ${formatCurrency(safeMinBid)}`,
         variant: "destructive",
       });
       return;
@@ -85,11 +88,11 @@ export function BidForm({
           <Input
             id="bid-amount"
             type="number"
-            placeholder={`Min ${formatCurrency(minBid)}`}
+            placeholder={`Min ${formatCurrency(safeMinBid)}`}
             value={bidAmount}
             onChange={(e) => setBidAmount(e.target.value)}
-            min={minBid}
-            step={bidIncrement}
+            min={safeMinBid}
+            step={safeIncrement}
             disabled={loading}
             className="flex-1"
           />
@@ -137,8 +140,8 @@ export function BidForm({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Minimum bid: {formatCurrency(minBid)} | Bid increment:{" "}
-        {formatCurrency(bidIncrement)}
+        Minimum bid: {formatCurrency(safeMinBid)} | Bid increment:{" "}
+        {formatCurrency(safeIncrement)}
       </p>
     </form>
   );
