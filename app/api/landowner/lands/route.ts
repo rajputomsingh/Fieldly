@@ -1,6 +1,6 @@
 // app/api/landowner/lands/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server"; 
+import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/storage/supabase-server";
 import { v4 as uuid } from "uuid";
@@ -19,28 +19,28 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const ownerId = searchParams.get('ownerId');
-    const isActive = searchParams.get('isActive') === 'true';
-    const isArchived = searchParams.get('isArchived') === 'false';
-    
+    const ownerId = searchParams.get("ownerId");
+    const isActive = searchParams.get("isActive") === "true";
+    const isArchived = searchParams.get("isArchived") === "false";
+
     if (!ownerId) {
-      return NextResponse.json({ error: 'ownerId required' }, { status: 400 });
+      return NextResponse.json({ error: "ownerId required" }, { status: 400 });
     }
-    
+
     // Find the LandownerProfile first
     const landownerProfile = await prisma.landownerProfile.findUnique({
-      where: { userId: ownerId }
+      where: { userId: ownerId },
     });
-    
+
     if (!landownerProfile) {
       return NextResponse.json({ lands: [] });
     }
-    
+
     const lands = await prisma.land.findMany({
       where: {
         landownerId: landownerProfile.id,
         ...(isActive ? { isActive: true } : {}),
-        ...(isArchived ? { isArchived: false } : {})
+        ...(isArchived ? { isArchived: false } : {}),
       },
       select: {
         id: true,
@@ -55,14 +55,14 @@ export async function GET(req: NextRequest) {
         expectedRentMin: true,
         expectedRentMax: true,
         isActive: true,
-        isArchived: true
-      }
+        isArchived: true,
+      },
     });
-    
+
     return NextResponse.json({ lands });
   } catch (error) {
-    console.error('[LANDS_GET]', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    console.error("[LANDS_GET]", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     if (!clerkId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (!user || !user.landownerProfile) {
       return NextResponse.json(
         { success: false, error: "Complete landowner profile first" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -118,19 +118,19 @@ export async function POST(req: NextRequest) {
     // ---------------- PARSED ----------------
     const allowedCropTypes = parseJSON<string[]>(
       formData.get("allowedCropTypes"),
-      []
+      [],
     );
 
     const previousCrops = parseJSON<string[]>(
       formData.get("previousCrops"),
-      []
+      [],
     );
 
     // ---------------- VALIDATION ----------------
     if (!formData.get("title") || !formData.get("size")) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
           allowedCropTypes,
           previousCrops,
           allowsInfrastructureModification: bool(
-            formData.get("allowsInfrastructureModification")
+            formData.get("allowsInfrastructureModification"),
           ),
           allowsOrganicFarming:
             formData.get("allowsOrganicFarming") !== "false",
@@ -192,13 +192,11 @@ export async function POST(req: NextRequest) {
         data: {
           listingId: listing.id,
           paymentFrequency:
-            (formData.get("paymentFrequency") as PaymentFrequency) ||
-            "MONTHLY",
+            (formData.get("paymentFrequency") as PaymentFrequency) || "MONTHLY",
           securityDepositRequired:
             formData.get("securityDepositRequired") === "true",
           depositAmount: num(formData.get("depositAmount")),
-          additionalTerms:
-            (formData.get("additionalTerms") as string) || null,
+          additionalTerms: (formData.get("additionalTerms") as string) || null,
         },
       });
 
@@ -232,7 +230,7 @@ export async function POST(req: NextRequest) {
               sortOrder: i,
             },
           });
-        })
+        }),
       );
     }
 
@@ -251,10 +249,12 @@ export async function POST(req: NextRequest) {
     // NOTIFY MATCHING FARMERS
     notifyMatchingFarmersAboutListing(result.land.id, result.listing.id)
       .then((notificationResult) => {
-        console.log(`Notified ${notificationResult.notified} farmers about new listing`);
+        console.log(
+          `Notified ${notificationResult.notified} farmers about new listing`,
+        );
       })
       .catch((error) => {
-        console.error('Failed to notify farmers:', error);
+        console.error("Failed to notify farmers:", error);
       });
 
     // ---------------- SUCCESS ----------------
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
         listingId: result.listing.id,
         data: result.land,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (err) {
     console.error("LAND CREATE ERROR:", err);
@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
         success: false,
         error: "Failed to create listing",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

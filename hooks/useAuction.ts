@@ -1,7 +1,7 @@
 // hooks/useAuction.ts
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
-import { usePusher } from "./usePusher"
+import { usePusher } from "./usePusher";
 import type { NewBidEvent } from "./usePusher";
 import type { AuctionDTO, BidDTO } from "@/lib/marketplace/types";
 
@@ -59,13 +59,20 @@ export function useAuction(listingId: string): UseAuctionReturn {
 
   const fetchAuctionData = useCallback(async () => {
     try {
-      const response = await fetch("/api/marketplace/" + listingId + "/auction");
+      const response = await fetch(
+        "/api/marketplace/" + listingId + "/auction",
+      );
       if (!response.ok) throw new Error("Failed to fetch auction");
       const result = await response.json();
       const data = result.data || result;
       const auctionData = data.listing || data;
       setAuction(data);
-      setBids(auctionData.bids || []);
+      setBids(
+        (auctionData.bids || []).map((b: BidDTO) => ({
+          ...b,
+          amount: Number(b.amount),
+        })),
+      );
       const endTime = new Date(auctionData.endDate).getTime();
       setTimeRemaining(Math.max(0, endTime - Date.now()));
       setError(null);
@@ -85,7 +92,7 @@ export function useAuction(listingId: string): UseAuctionReturn {
       const bidData = data.bid as Record<string, unknown>;
       const newBid: BidDTO = {
         id: bidData.id as string,
-        amount: bidData.amount as number,
+        amount: Number(bidData.amount),
         farmerId: bidData.farmerId as string,
         createdAt: bidData.createdAt as string,
         isAutoBid: false,
@@ -116,10 +123,20 @@ export function useAuction(listingId: string): UseAuctionReturn {
   }, [auction]);
 
   const { canBid, validationMessage } = useMemo(() => {
-    if (!auction) return { canBid: false, validationMessage: "Loading auction data..." };
-    if (!clerkUser) return { canBid: false, validationMessage: "You must be signed in to place a bid" };
-    if (!isFarmer) return { canBid: false, validationMessage: "Only farmers can place bids" };
-    if (!farmerId) return { canBid: false, validationMessage: "User profile not found" };
+    if (!auction)
+      return { canBid: false, validationMessage: "Loading auction data..." };
+    if (!clerkUser)
+      return {
+        canBid: false,
+        validationMessage: "You must be signed in to place a bid",
+      };
+    if (!isFarmer)
+      return {
+        canBid: false,
+        validationMessage: "Only farmers can place bids",
+      };
+    if (!farmerId)
+      return { canBid: false, validationMessage: "User profile not found" };
     return { canBid: true, validationMessage: null };
   }, [auction, clerkUser, isFarmer, farmerId]);
 
@@ -128,31 +145,60 @@ export function useAuction(listingId: string): UseAuctionReturn {
     return auction.listing.auctionStatus === "LIVE";
   }, [auction]);
 
-  const placeBid = useCallback(async (amount: number, isAutoBid = false) => {
-    if (!canBid) throw new Error(validationMessage || "Cannot place bid");
-    if (!farmerId) throw new Error("User profile not found");
-    if (!auction) throw new Error("Auction data not available");
+  const placeBid = useCallback(
+    async (amount: number, isAutoBid = false) => {
+      if (!canBid) throw new Error(validationMessage || "Cannot place bid");
+      if (!farmerId) throw new Error("User profile not found");
+      if (!auction) throw new Error("Auction data not available");
 
-    const highestBid = bids[0]?.amount || auction.listing.basePrice;
-    const minBid = highestBid + (auction.listing.bidIncrement || 1000);
-    if (amount < minBid) throw new Error("Bid must be at least ?" + minBid.toLocaleString());
+      const highestBid = Number(
+        bids[0]?.amount || auction.listing.basePrice || 0,
+      );
+      const bidIncrement = Number(auction.listing.bidIncrement || 1000);
+      const minBid = highestBid + bidIncrement;
+      if (amount < minBid)
+        throw new Error("Bid must be at least ?" + minBid.toLocaleString());
 
-    try {
-      const response = await fetch("/api/marketplace/" + listingId + "/bids", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ farmerId, amount, isAutoBid }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to place bid");
-      await fetchAuctionData();
-      setError(null);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to place bid";
-      setError(msg);
-      throw err;
-    }
-  }, [listingId, farmerId, canBid, validationMessage, auction, bids, fetchAuctionData]);
+      try {
+        const response = await fetch(
+          "/api/marketplace/" + listingId + "/bids",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ farmerId, amount, isAutoBid }),
+          },
+        );
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "Failed to place bid");
+        await fetchAuctionData();
+        setError(null);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to place bid";
+        setError(msg);
+        throw err;
+      }
+    },
+    [
+      listingId,
+      farmerId,
+      canBid,
+      validationMessage,
+      auction,
+      bids,
+      fetchAuctionData,
+    ],
+  );
 
-  return { auction, bids, loading, error, placeBid, timeRemaining, isLive, canBid, validationMessage };
+  return {
+    auction,
+    bids,
+    loading,
+    error,
+    placeBid,
+    timeRemaining,
+    isLive,
+    canBid,
+    validationMessage,
+  };
 }

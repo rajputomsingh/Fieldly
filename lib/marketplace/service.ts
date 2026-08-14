@@ -152,15 +152,20 @@ class MarketplaceService {
       if (now < startDate) throw new Error("Auction has not started yet");
       if (now > endDate) throw new Error("Auction has ended");
 
-      const highestBid =
+      const highestBid = Number(
         listing.bids[0]?.amount?.toNumber() ??
-        listing.basePrice?.toNumber() ??
-        0;
-      const minBid =
-        highestBid +
-        (listing.bidIncrement?.toNumber() ??
-          MARKETPLACE_CONSTANTS.BID.DEFAULT_INCREMENT);
-      if (amount < minBid) throw new Error(`Bid must be at least ₹${minBid}`);
+          listing.basePrice?.toNumber() ??
+          0,
+      );
+      const bidIncrement = Number(
+        listing.bidIncrement?.toNumber() ??
+          MARKETPLACE_CONSTANTS.BID.DEFAULT_INCREMENT,
+      );
+      const minBid = highestBid + bidIncrement;
+
+      const numericAmount = Number(amount);
+      if (numericAmount < minBid)
+        throw new Error(`Bid must be at least ₹${minBid}`);
 
       const result = await prisma.$transaction(
         async (tx) => {

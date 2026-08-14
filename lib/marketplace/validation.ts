@@ -1,9 +1,9 @@
 // lib/marketplace/validation.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 export const BidSchema = z.object({
-  farmerId: z.string().min(1, 'Farmer ID is required'),
-  amount: z.number().positive('Bid amount must be positive'),
+  farmerId: z.string().min(1, "Farmer ID is required"),
+  amount: z.coerce.number().positive("Bid amount must be positive"),
   isAutoBid: z.boolean().optional().default(false),
   message: z.string().max(500).optional(),
 });
@@ -19,14 +19,17 @@ export const FeedFiltersSchema = z.object({
   maxSize: z.number().positive().optional(),
   irrigation: z.boolean().optional(),
   verifiedOnly: z.boolean().optional(),
-  sortBy: z.enum([
-    'hotnessScore',
-    'newest',
-    'endingSoon',
-    'priceLowToHigh',
-    'priceHighToLow',
-    'mostBids',
-  ]).optional().default('hotnessScore'),
+  sortBy: z
+    .enum([
+      "hotnessScore",
+      "newest",
+      "endingSoon",
+      "priceLowToHigh",
+      "priceHighToLow",
+      "mostBids",
+    ])
+    .optional()
+    .default("hotnessScore"),
 });
 
 export const PaginationSchema = z.object({
@@ -35,7 +38,7 @@ export const PaginationSchema = z.object({
 });
 
 export const SavedListingSchema = z.object({
-  listingId: z.string().min(1, 'Listing ID is required'),
+  listingId: z.string().min(1, "Listing ID is required"),
 });
 
 export const AuctionFiltersSchema = z.object({
