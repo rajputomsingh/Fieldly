@@ -5,8 +5,6 @@ generator client {
 datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
-  directUrl         = env("DIRECT_DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -483,7 +481,7 @@ model Application {
   land         Land              @relation(fields: [landId], references: [id])
   listing      LandListing?      @relation(fields: [listingId], references: [id])
 
-  @@unique([landId, farmerId, status])
+  @@index([landId, farmerId])
   @@index([farmerId])
   @@index([landId])
   @@index([listingId])

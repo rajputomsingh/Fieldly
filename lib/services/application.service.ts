@@ -9,36 +9,72 @@ import { AppError } from "@/lib/errors";
 // ============================================
 const BLOCKED_PATTERNS = [
   // Email symbols and domains
-  '@', 'gmail', 'yahoo', 'outlook', 'hotmail', 'icloud', 'proton', 'email', 'mail',
-  '.com', '.in', '.org', '.net', '.co', '.io', '.uk', '.us', '.dev',
-  
+  "@",
+  "gmail",
+  "yahoo",
+  "outlook",
+  "hotmail",
+  "icloud",
+  "proton",
+  "email",
+  "mail",
+  ".com",
+  ".in",
+  ".org",
+  ".net",
+  ".co",
+  ".io",
+  ".uk",
+  ".us",
+  ".dev",
+
   // Contact keywords
-  'contact', 'call', 'text', 'reach', 'ping', 'dm', 'message me',
-  'whatsapp', 'telegram', 'signal', 'instagram', 'facebook', 'twitter', 'linkedin',
-  
+  "contact",
+  "call",
+  "text",
+  "reach",
+  "ping",
+  "dm",
+  "message me",
+  "whatsapp",
+  "telegram",
+  "signal",
+  "instagram",
+  "facebook",
+  "twitter",
+  "linkedin",
+
   // Phone indicators
-  'phone', 'mobile', 'number', 'cell', '+91', '+1', '+44',
-  
+  "phone",
+  "mobile",
+  "number",
+  "cell",
+  "+91",
+  "+1",
+  "+44",
+
   // Obfuscation attempts
-  '[at]', '[dot]', '(at)', '(dot)', ' at ', ' dot ',
-]
+  "[at]",
+  "[dot]",
+  "(at)",
+  "(dot)",
+  " at ",
+  " dot ",
+];
 
 function hasContactInfo(text: string): boolean {
-  if (!text) return false
-  const lower = text.toLowerCase()
-  
-  // Check blocked keywords
-  if (BLOCKED_PATTERNS.some(p => lower.includes(p))) return true
-  
-  // Check phone numbers (10+ consecutive digits)
-  const digitsOnly = text.replace(/\D/g, '')
-  if (digitsOnly.length >= 10) return true
-  
-  // Check spaced email (like "test @ gmail . com")
-  const spaceless = lower.replace(/\s+/g, '')
-  if (spaceless.includes('@') && spaceless.includes('.com')) return true
-  
-  return false
+  if (!text) return false;
+  const lower = text.toLowerCase();
+
+  if (BLOCKED_PATTERNS.some((p) => lower.includes(p))) return true;
+
+  const digitsOnly = text.replace(/\D/g, "");
+  if (digitsOnly.length >= 10) return true;
+
+  const spaceless = lower.replace(/\s+/g, "");
+  if (spaceless.includes("@") && spaceless.includes(".com")) return true;
+
+  return false;
 }
 
 // ============================================
@@ -115,7 +151,19 @@ interface SanitizePermissions {
 // APPLICATION SERVICE CLASS
 // ============================================
 export class ApplicationService {
-  
+  /**
+   * Safely convert Prisma Decimal or number to plain number
+   */
+  private static toNumberSafe(value: unknown): number | null {
+    if (value == null) return null;
+    if (typeof value === "number") return value;
+    if (typeof value === "object" && "toNumber" in value) {
+      return (value as { toNumber: () => number }).toNumber();
+    }
+    if (typeof value === "string") return parseFloat(value);
+    return null;
+  }
+
   /**
    * Create a new application
    */
@@ -130,59 +178,46 @@ export class ApplicationService {
       message?: string;
     },
   ) {
-    // 1. REJECT contact information
-    if (hasContactInfo(data.cropPlan || '')) {
-      throw new AppError("Crop plan contains contact information (email, phone, etc.). Please remove it.", 400);
-    }
-    
-    if (hasContactInfo(data.message || '')) {
-      throw new AppError("Message contains contact information (email, phone, etc.). Please remove it.", 400);
+    if (hasContactInfo(data.cropPlan || "")) {
+      throw new AppError(
+        "Crop plan contains contact information. Please remove it.",
+        400,
+      );
     }
 
-    // 2. Verify farmer exists and is onboarded
+    if (hasContactInfo(data.message || "")) {
+      throw new AppError(
+        "Message contains contact information. Please remove it.",
+        400,
+      );
+    }
+
     const farmer = await prisma.user.findUnique({
       where: { id: farmerId },
       include: { farmerProfile: true },
     });
 
-    if (!farmer) {
-      throw new AppError("User not found", 404);
-    }
-
-    if (!farmer.isOnboarded) {
+    if (!farmer) throw new AppError("User not found", 404);
+    if (!farmer.isOnboarded)
       throw new AppError("Complete onboarding before applying", 400);
-    }
 
-    // 3. Verify land exists and is active
     const land = await prisma.land.findUnique({
       where: { id: data.landId },
       include: {
         landowner: {
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
-          }
-        }
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
       },
     });
 
-    if (!land) {
-      throw new AppError("Land not found", 404);
-    }
+    if (!land) throw new AppError("Land not found", 404);
+    if (!land.isActive || land.isArchived)
+      throw new AppError("This land is not available", 400);
 
-    if (!land.isActive || land.isArchived) {
-      throw new AppError("This land is not available for applications", 400);
-    }
-
-    // Get landowner's user ID for notifications
     const landownerUserId = land.landowner.user.id;
 
-    // 4. Check for existing active application
     const existingApplication = await prisma.application.findFirst({
       where: {
         landId: data.landId,
@@ -191,29 +226,22 @@ export class ApplicationService {
       },
     });
 
-    if (existingApplication) {
-      throw new AppError("You already have an active application for this land", 400);
-    }
+    if (existingApplication)
+      throw new AppError(
+        "You already have an active application for this land",
+        400,
+      );
 
-    // 5. Validate lease duration
-    if (data.duration < land.minLeaseDuration || data.duration > land.maxLeaseDuration) {
+    if (
+      data.duration < land.minLeaseDuration ||
+      data.duration > land.maxLeaseDuration
+    ) {
       throw new AppError(
         `Lease duration must be between ${land.minLeaseDuration} and ${land.maxLeaseDuration} months`,
         400,
       );
     }
 
-    // 6. Rent validation - WARNING ONLY (don't block submission)
-    if (data.proposedRent) {
-      if (land.expectedRentMin && data.proposedRent < land.expectedRentMin?.toNumber()) {
-        console.log(`⚠️ Rent below minimum: ${data.proposedRent} < ${land.expectedRentMin}`);
-      }
-      if (land.expectedRentMax && data.proposedRent > land.expectedRentMax?.toNumber()) {
-        console.log(`⚠️ Rent above maximum: ${data.proposedRent} > ${land.expectedRentMax}`);
-      }
-    }
-
-    // 7. Create application with transaction
     const application = await prisma.$transaction(async (tx) => {
       const app = await tx.application.create({
         data: {
@@ -231,10 +259,8 @@ export class ApplicationService {
             include: {
               landowner: {
                 include: {
-                  user: {
-                    select: { id: true, name: true, email: true }
-                  }
-                }
+                  user: { select: { id: true, name: true, email: true } },
+                },
               },
             },
           },
@@ -255,32 +281,26 @@ export class ApplicationService {
           action: "APPLICATION_CREATED",
           entity: "Application",
           entityId: app.id,
-          metadata: {
-            landId: data.landId,
-            duration: data.duration,
-            hasRentProposal: !!data.proposedRent,
-          },
+          metadata: { landId: data.landId, duration: data.duration },
         },
       });
 
       return app;
     });
 
-    // 8. Send notification to landowner
     try {
       await createNotification({
         userId: landownerUserId,
         type: "APPLICATION",
         title: "📋 New Lease Application Received",
-        message: `${farmer.name} has applied to lease "${land.title}". Proposed rent: ${data.proposedRent ? `₹${data.proposedRent.toLocaleString('en-IN')}` : 'Not specified'}.`,
+        message: `${farmer.name} has applied to lease "${land.title}".`,
         entityType: "Application",
         entityId: application.id,
         actionUrl: `/applications/${application.id}`,
         priority: "HIGH",
       });
-      console.log(`✅ Notification sent to landowner ${landownerUserId}`);
     } catch (error) {
-      console.error('❌ Failed to send notification:', error);
+      console.error("Failed to send notification:", error);
     }
 
     return application;
@@ -300,33 +320,31 @@ export class ApplicationService {
         land: {
           include: {
             landowner: {
-              include: {
-                user: { select: { id: true } }
-              }
-            }
-          }
+              include: { user: { select: { id: true } } },
+            },
+          },
         },
         farmer: true,
       },
     });
 
-    if (!application) {
-      throw new AppError("Application not found", 404);
-    }
+    if (!application) throw new AppError("Application not found", 404);
 
-    // Check if reviewer is the landowner
     const landownerUserId = application.land.landowner.user.id;
-    if (landownerUserId !== reviewerId) {
-      throw new AppError("Unauthorized to review this application", 403);
-    }
+    if (landownerUserId !== reviewerId) throw new AppError("Unauthorized", 403);
 
     if (!["PENDING", "UNDER_REVIEW"].includes(application.status)) {
-      throw new AppError(`Application is already ${application.status.toLowerCase()}`, 400);
+      throw new AppError(
+        `Application is already ${application.status.toLowerCase()}`,
+        400,
+      );
     }
 
-    // Validate review notes don't contain contact info
-    if (hasContactInfo(data.reviewNotes || '')) {
-      throw new AppError("Review notes cannot contain contact information", 400);
+    if (hasContactInfo(data.reviewNotes || "")) {
+      throw new AppError(
+        "Review notes cannot contain contact information",
+        400,
+      );
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -340,7 +358,10 @@ export class ApplicationService {
       });
 
       if (data.status === "APPROVED") {
-        const rent = application.proposedRent?.toNumber() ?? application.land.expectedRentMin?.toNumber() ?? 0;
+        const rent =
+          this.toNumberSafe(application.proposedRent) ??
+          this.toNumberSafe(application.land.expectedRentMin) ??
+          0;
 
         await tx.lease.create({
           data: {
@@ -350,7 +371,9 @@ export class ApplicationService {
             listingId: application.listingId,
             rent,
             startDate: new Date(),
-            endDate: new Date(Date.now() + application.duration * 30 * 24 * 60 * 60 * 1000),
+            endDate: new Date(
+              Date.now() + application.duration * 30 * 24 * 60 * 60 * 1000,
+            ),
             status: "PENDING_SIGNATURE",
             leaseSource: application.listingId ? "AUCTION" : "DIRECT",
             securityDeposit: rent * 2,
@@ -381,32 +404,25 @@ export class ApplicationService {
       return app;
     });
 
-    // Send notifications
     try {
       await createNotification({
         userId: application.farmerId,
         type: "APPLICATION",
-        title: data.status === "APPROVED" ? "✅ Application Approved!" : "❌ Application Not Selected",
-        message: data.status === "APPROVED"
-          ? `Great news! Your application for "${application.land.title}" has been approved.`
-          : `Your application for "${application.land.title}" was not accepted.`,
+        title:
+          data.status === "APPROVED"
+            ? "✅ Application Approved!"
+            : "❌ Application Not Selected",
+        message:
+          data.status === "APPROVED"
+            ? `Great news! Your application for "${application.land.title}" has been approved.`
+            : `Your application for "${application.land.title}" was not accepted.`,
         entityType: "Application",
         entityId: applicationId,
         actionUrl: `/applications/${applicationId}`,
         priority: "HIGH",
       });
-
-      await createNotification({
-        userId: reviewerId,
-        type: "APPLICATION",
-        title: `Application ${data.status.toLowerCase()}`,
-        message: `You have ${data.status.toLowerCase()} the application for "${application.land.title}".`,
-        entityType: "Application",
-        entityId: applicationId,
-        priority: "MEDIUM",
-      });
     } catch (error) {
-      console.error('Failed to send notifications:', error);
+      console.error("Failed to send notification:", error);
     }
 
     return updated;
@@ -422,31 +438,26 @@ export class ApplicationService {
         land: {
           include: {
             landowner: {
-              include: {
-                user: { select: { id: true } }
-              }
-            }
-          }
+              include: { user: { select: { id: true } } },
+            },
+          },
         },
         farmer: true,
       },
     });
 
-    if (!application) {
-      throw new AppError("Application not found", 404);
-    }
-
-    if (application.farmerId !== farmerId) {
-      throw new AppError("Unauthorized to withdraw this application", 403);
-    }
-
-    if (!["PENDING", "UNDER_REVIEW"].includes(application.status)) {
+    if (!application) throw new AppError("Application not found", 404);
+    if (application.farmerId !== farmerId)
+      throw new AppError("Unauthorized", 403);
+    if (!["PENDING", "UNDER_REVIEW"].includes(application.status))
       throw new AppError("Application cannot be withdrawn", 400);
-    }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const app = await tx.application.update({
-        where: { id: applicationId },
+    await prisma.$transaction(async (tx) => {
+      await tx.application.updateMany({
+        where: {
+          id: applicationId,
+          status: { in: ["PENDING", "UNDER_REVIEW"] },
+        },
         data: { status: "WITHDRAWN" },
       });
 
@@ -465,26 +476,21 @@ export class ApplicationService {
           entityId: applicationId,
         },
       });
-
-      return app;
     });
 
-    // Notify landowner
     try {
       await createNotification({
         userId: application.land.landowner.user.id,
         type: "APPLICATION",
         title: "↩️ Application Withdrawn",
-        message: `${application.farmer.name} has withdrawn their application for "${application.land.title}".`,
+        message: `${application.farmer.name} has withdrawn their application.`,
         entityType: "Application",
         entityId: applicationId,
         priority: "MEDIUM",
       });
     } catch (error) {
-      console.error('Failed to send withdrawal notification:', error);
+      console.error("Failed to send notification:", error);
     }
-
-    return updated;
   }
 
   /**
@@ -507,16 +513,10 @@ export class ApplicationService {
     if (role === "FARMER") {
       where.farmerId = userId;
     } else {
-      where.land = {
-        landowner: {
-          user: { id: userId }
-        }
-      };
+      where.land = { landowner: { user: { id: userId } } };
     }
 
-    if (filters?.status?.length) {
-      where.status = { in: filters.status };
-    }
+    if (filters?.status?.length) where.status = { in: filters.status };
 
     if (filters?.search) {
       where.OR = [
@@ -527,7 +527,9 @@ export class ApplicationService {
 
     const orderBy: Prisma.ApplicationOrderByWithRelationInput = {};
     if (filters?.sortBy) {
-      orderBy[filters.sortBy as keyof Prisma.ApplicationOrderByWithRelationInput] = filters.sortOrder || "desc";
+      orderBy[
+        filters.sortBy as keyof Prisma.ApplicationOrderByWithRelationInput
+      ] = filters.sortOrder || "desc";
     } else {
       orderBy.createdAt = "desc";
     }
@@ -579,7 +581,12 @@ export class ApplicationService {
     ]);
 
     return {
-      applications: applications.map((app) => this.sanitizeApplicationResponse(app)),
+      applications: applications.map((app) =>
+        this.sanitizeApplicationResponse(
+          app as unknown as Record<string, unknown>,
+        ),
+      ),
+
       total,
       hasMore: total > (filters?.offset || 0) + (filters?.limit || 20),
     };
@@ -613,10 +620,7 @@ export class ApplicationService {
                 },
               },
             },
-            images: {
-              where: { isPrimary: true },
-              take: 1,
-            },
+            images: { where: { isPrimary: true }, take: 1 },
           },
         },
         farmer: {
@@ -650,23 +654,27 @@ export class ApplicationService {
       },
     });
 
-    if (!application) {
-      throw new AppError("Application not found", 404);
-    }
+    if (!application) throw new AppError("Application not found", 404);
 
     const isFarmer = application.farmerId === userId;
     const isLandowner = application.land.landowner.user.id === userId;
     const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
 
-    if (!isFarmer && !isLandowner && !isAdmin) {
+    if (!isFarmer && !isLandowner && !isAdmin)
       throw new AppError("Unauthorized", 403);
-    }
 
-    return this.sanitizeApplicationResponse(application, { isFarmer, isLandowner, isAdmin });
+    return this.sanitizeApplicationResponse(
+      application as unknown as Record<string, unknown>,
+      {
+        isFarmer,
+        isLandowner,
+        isAdmin,
+      },
+    );
   }
 
   /**
-   * Sanitize application response (remove sensitive data)
+   * Sanitize application response (remove sensitive data + convert Decimals)
    */
   private static sanitizeApplicationResponse<T extends Record<string, unknown>>(
     app: T,
@@ -674,6 +682,23 @@ export class ApplicationService {
   ): SanitizedApplicationResponse {
     const sanitized = { ...app } as unknown as SanitizedApplicationResponse;
 
+    // Convert Decimal fields to numbers
+    sanitized.proposedRent = this.toNumberSafe(sanitized.proposedRent);
+
+    if (sanitized.land) {
+      const land = sanitized.land as unknown as Record<string, unknown>;
+
+      land.expectedRentMin = this.toNumberSafe(land.expectedRentMin);
+      land.expectedRentMax = this.toNumberSafe(land.expectedRentMax);
+      land.depositAmount = this.toNumberSafe(land.depositAmount);
+    }
+
+    if (sanitized.listing) {
+      const listing = sanitized.listing as unknown as Record<string, unknown>;
+      listing.basePrice = this.toNumberSafe(listing.basePrice) ?? 0;
+    }
+
+    // Remove sensitive fields
     if (sanitized.farmer) {
       if (!permissions?.isLandowner && !permissions?.isAdmin) {
         delete sanitized.farmer.email;
@@ -690,4 +715,4 @@ export class ApplicationService {
 
     return sanitized;
   }
-} 
+}
