@@ -1,3 +1,5 @@
+// app/profile/[id]/_components/ListingsGrid.tsx
+
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -122,18 +124,18 @@ export function ListingsGrid({ listings }: Props) {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="w-full space-y-8 px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-col gap-4">
         {/* Title Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                 Active Listings
               </h2>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               {listings.length === 0
                 ? "No listings available at the moment"
                 : `${listings.length} ${listings.length === 1 ? "listing" : "listings"} waiting for bids`}
@@ -201,7 +203,7 @@ export function ListingsGrid({ listings }: Props) {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
           >
             {sortedListings.map((listing) => (
               <motion.div
@@ -214,7 +216,7 @@ export function ListingsGrid({ listings }: Props) {
                 <Link href={`/marketplace/listings/${listing.id}`}>
                   <div className="group relative rounded-2xl border bg-card overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
                     {/* Image */}
-                    <div className="relative h-52 bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden">
+                    <div className="relative h-56 md:h-64 bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden">
                       {listing.images?.[0]?.url ? (
                         <Image
                           src={listing.images[0].url}
@@ -258,8 +260,8 @@ export function ListingsGrid({ listings }: Props) {
                     </div>
 
                     {/* Content */}
-                    <div className="p-5 space-y-3">
-                      <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+                    <div className="p-5 md:p-6 space-y-3">
+                      <h3 className="font-semibold text-lg md:text-xl line-clamp-1 group-hover:text-primary transition-colors">
                         {listing.title}
                       </h3>
 
@@ -296,7 +298,7 @@ export function ListingsGrid({ listings }: Props) {
                           <p className="text-xs text-muted-foreground mb-0.5">
                             Base Price
                           </p>
-                          <p className="text-xl font-bold text-primary">
+                          <p className="text-xl md:text-2xl font-bold text-primary">
                             {formatINR(listing.basePrice)}
                             <span className="text-xs font-normal text-muted-foreground ml-1">
                               /year
@@ -348,3 +350,5 @@ export function ListingsGrid({ listings }: Props) {
     </div>
   );
 }
+
+export default ListingsGrid;

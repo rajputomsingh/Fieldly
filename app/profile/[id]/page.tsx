@@ -42,15 +42,24 @@ export default async function ProfilePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 sm:space-y-12">
+      {/* Profile Header - Contained within max-width */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12">
         <ProfileHeader 
           user={data.user} 
           currentUserRole={currentUserRole}
           currentUserId={currentUserId}
         />
+      </div>
+      
+      {/* StatsBar - Full width, breaks out of container */}
+      <div className="mt-12 sm:mt-16">
         <StatsBar stats={data.stats} />
+      </div>
+      
+      {/* Listings Grid - Full width, breaks out of container */}
+      <div className="py-8 sm:py-12">
         <ListingsGrid listings={data.listings} />
-      </div>  
+      </div>
     </div>
   );
 }
