@@ -1,26 +1,49 @@
+// app/api/admin/applications/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma, ApplicationStatus } from "@prisma/client";
+
 import { requireAdmin } from "@/lib/server/admin-guard";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    await requireAdmin();
+
     const searchParams = req.nextUrl.searchParams;
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "20", 10);
     const status = searchParams.get("status");
     const search = searchParams.get("search");
 
-    const where: any = {};
+    const where: Prisma.ApplicationWhereInput = {};
 
+    // Validate status against the generated enum before assigning.
     if (status && status !== "all") {
-      where.status = status;
+      const allowed = Object.values(ApplicationStatus) as string[];
+      if (allowed.includes(status)) {
+        where.status = status as ApplicationStatus;
+      }
     }
 
     if (search) {
       where.OR = [
-        { land: { title: { contains: search, mode: "insensitive" } } },
-        { farmer: { name: { contains: search, mode: "insensitive" } } },
+        {
+          land: {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          farmer: {
+            name: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
       ];
     }
 
@@ -38,19 +61,29 @@ export async function GET(req: NextRequest) {
             },
           },
           farmer: {
-            select: { name: true, email: true, imageUrl: true },
+            select: {
+              name: true,
+              email: true,
+              imageUrl: true,
+            },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          createdAt: "desc",
+        },
         skip: (page - 1) * limit,
         take: limit,
       }),
+
       prisma.application.count({ where }),
+
       prisma.application.groupBy({
         by: ["status"],
         where,
         _count: true,
-        _sum: { proposedRent: true },
+        _sum: {
+          proposedRent: true,
+        },
       }),
     ]);
 
@@ -87,6 +120,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("[ADMIN_APPLICATIONS_GET]", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

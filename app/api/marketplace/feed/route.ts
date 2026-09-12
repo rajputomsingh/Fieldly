@@ -1,37 +1,48 @@
-// GET /api/marketplace/feed - Marketplace Feed
-import { NextRequest } from 'next/server';
-import { marketplaceService } from '@/lib/marketplace/service';
-import { FeedFiltersSchema, PaginationSchema } from '@/lib/marketplace/validation';
-import { responses } from '@/lib/marketplace/responses';
-import { logger } from '@/lib/marketplace/logger';
+// app/api/marketplace/feed/route.ts
+import { NextRequest } from 'next/server'
+import { marketplaceService } from '@/lib/marketplace/service'
+import {
+  FeedFiltersSchema,
+  PaginationSchema,
+} from '@/lib/marketplace/validation'
+import { responses } from '@/lib/marketplace/responses'
+import { handleError } from '@/lib/errors'
+
+function num(v: string | null): number | undefined {
+  if (v === null || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
 
 export async function GET(req: NextRequest) {
   try {
-    const searchParams = req.nextUrl.searchParams;
+    const sp = req.nextUrl.searchParams
 
     const filters = FeedFiltersSchema.parse({
-      search: searchParams.get('search') || undefined,
-      minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined,
-      maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined,
-      landType: searchParams.get('landType') || undefined,
-      state: searchParams.get('state') || undefined,
-      district: searchParams.get('district') || undefined,
-      minSize: searchParams.get('minSize') ? parseFloat(searchParams.get('minSize')!) : undefined,
-      maxSize: searchParams.get('maxSize') ? parseFloat(searchParams.get('maxSize')!) : undefined,
-      irrigation: searchParams.get('irrigation') === 'true' ? true : undefined,
-      verifiedOnly: searchParams.get('verifiedOnly') === 'true' ? true : undefined,
-      sortBy: searchParams.get('sortBy') || 'hotnessScore',
-    });
+      search: sp.get('search') || undefined,
+      minPrice: num(sp.get('minPrice')),
+      maxPrice: num(sp.get('maxPrice')),
+      landType: sp.get('landType') || undefined,
+      state: sp.get('state') || undefined,
+      district: sp.get('district') || undefined,
+      minSize: num(sp.get('minSize')),
+      maxSize: num(sp.get('maxSize')),
+      irrigation: sp.get('irrigation') === 'true' ? true : undefined,
+      verifiedOnly: sp.get('verifiedOnly') === 'true' ? true : undefined,
+      sortBy: sp.get('sortBy') || 'hotnessScore',
+    })
 
     const pagination = PaginationSchema.parse({
-      page: parseInt(searchParams.get('page') || '1'),
-      limit: parseInt(searchParams.get('limit') || '20'),
-    });
+      page: Number(sp.get('page') || '1'),
+      limit: Number(sp.get('limit') || '20'),
+    })
 
-    const result = await marketplaceService.getFeed(filters, pagination);
-    return responses.success(result);
+    const result = await marketplaceService.getFeed(filters, pagination)
+    return responses.success(result)
   } catch (error) {
-    logger.error('Feed API error', error as Error);
-    return responses.serverError('Failed to fetch marketplace feed');
+    return handleError(error, {
+      route: '/api/marketplace/feed',
+      method: 'GET',
+    })
   }
 }

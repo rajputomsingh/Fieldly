@@ -1,102 +1,80 @@
 // app/api/health/redis/route.ts
-import { NextResponse } from 'next/server';
-import { redis, getHealth } from '@/lib/redis';
+import { NextResponse } from "next/server";
+import { getHealth, pingRedis } from "@/lib/redis";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 export async function GET() {
   const health = getHealth();
+  const timestamp = new Date().toISOString();
 
-  // If Redis isn't initialized, return immediately
-  if (!redis) {
+  // Not initialized → 503 unavailable
+  if (!health.initialized) {
     return NextResponse.json(
       {
-        status: 'unavailable',
+        status: "unavailable",
         initialized: false,
-        error: 'Redis client not initialized',
-        timestamp: new Date().toISOString(),
+        error: "Redis client not initialized",
+        timestamp,
       },
       { status: 503 }
     );
   }
 
-  // If circuit breaker is open, don't attempt ping
+  // Circuit breaker open → skip ping, report unhealthy
   if (health.circuitBreakerOpen) {
     return NextResponse.json(
       {
-        status: 'unhealthy',
-        connected: false,
-        error: 'Circuit breaker is open',
         ...health,
-        timestamp: new Date().toISOString(),
+        status: "unhealthy",
+        connected: false,
+        error: "Circuit breaker is open",
+        timestamp,
       },
       { status: 503 }
     );
   }
 
-  // Perform real connectivity check
-  const startTime = Date.now();
+  const ping = await pingRedis();
 
-  try {
-    const pingResult = await Promise.race([
-      redis.ping(),
-      new Promise<null>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Ping timed out after 3s')),
-          3000
-        )
-      ),
-    ]);
+  // Production: redact internal error details
+  const safeError = IS_PRODUCTION
+    ? ping.errorKind === "dns"
+      ? "DNS resolution failed"
+      : ping.errorKind === "timeout"
+        ? "Ping timed out"
+        : ping.errorKind === "auth"
+          ? "Authentication failed"
+          : "Redis unreachable"
+    : ping.error;
 
-    const latency = Date.now() - startTime;
-
-    if (pingResult === 'PONG') {
-      return NextResponse.json(
-        {
-          status: 'healthy',
-          connected: true,
-          latency,
-          ...health,
-          timestamp: new Date().toISOString(),
-        },
-        { status: 200 }
-      );
-    }
-
+  if (ping.ok) {
     return NextResponse.json(
       {
-        status: 'degraded',
-        connected: false,
-        latency,
-        error: `Unexpected ping response: ${typeof pingResult}`,
         ...health,
-        timestamp: new Date().toISOString(),
+        status: "healthy",
+        connected: true,
+        latency: ping.latencyMs,
+        timestamp,
       },
-      { status: 503 }
-    );
-  } catch (error) {
-    const latency = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    let status: string = 'unhealthy';
-    let diagnostic = errorMessage;
-
-    if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
-      diagnostic = `DNS resolution failed: ${errorMessage}`;
-    } else if (errorMessage.includes('timed out')) {
-      status = 'degraded';
-    }
-
-    return NextResponse.json(
-      {
-        status,
-        connected: false,
-        latency,
-        error: diagnostic,
-        ...health,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 503 }
+      { status: 200 }
     );
   }
+
+  const status = ping.errorKind === "timeout" ? "degraded" : "unhealthy";
+
+  return NextResponse.json(
+    {
+      ...health,
+      status,
+      connected: false,
+      latency: ping.latencyMs,
+      error: safeError,
+      ...(IS_PRODUCTION ? {} : { errorKind: ping.errorKind }),
+      timestamp,
+    },
+    { status: 503 }
+  );
 }

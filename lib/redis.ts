@@ -4,6 +4,7 @@ import { Redis } from "@upstash/redis";
 // ============================================================
 // Configuration
 // ============================================================
+
 const REDIS_TIMEOUT_MS = 3000;
 const CIRCUIT_BREAKER_THRESHOLD = 5;
 const CIRCUIT_BREAKER_RESET_MS = 30000;
@@ -11,6 +12,7 @@ const CIRCUIT_BREAKER_RESET_MS = 30000;
 // ============================================================
 // Logging
 // ============================================================
+
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LOG_LEVEL: LogLevel = (process.env.REDIS_LOG_LEVEL as LogLevel) || "info";
@@ -32,11 +34,9 @@ function log(
   data?: Record<string, unknown>,
 ): void {
   if (!shouldLog(level)) return;
-
   const timestamp = new Date().toISOString();
   const prefix = `[Redis:${level.toUpperCase()}]`;
   const dataStr = data ? ` ${JSON.stringify(data)}` : "";
-
   const logMessage = `${timestamp} ${prefix} ${message}${dataStr}`;
 
   switch (level) {
@@ -58,6 +58,7 @@ function log(
 // ============================================================
 // Metrics
 // ============================================================
+
 const metrics = {
   hits: 0,
   misses: 0,
@@ -76,6 +77,7 @@ export function getMetrics() {
 // ============================================================
 // Connection & Health
 // ============================================================
+
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -106,7 +108,6 @@ function sanitizeUrl(url: string): string {
 
 function isCircuitBreakerOpen(): boolean {
   if (consecutiveFailures < CIRCUIT_BREAKER_THRESHOLD) return false;
-
   const timeSinceLastFailure = Date.now() - lastFailureTime;
   if (timeSinceLastFailure >= CIRCUIT_BREAKER_RESET_MS) {
     log("info", "Circuit breaker reset, attempting reconnection");
@@ -115,7 +116,6 @@ function isCircuitBreakerOpen(): boolean {
     lastErrorTime = null;
     return false;
   }
-
   return true;
 }
 
@@ -129,7 +129,6 @@ if (redisUrl && redisToken) {
         url: redisUrl,
         token: redisToken,
       });
-
       initialized = true;
       log("info", "Redis initialized");
     } catch (error) {
@@ -150,6 +149,7 @@ export const redis = redisInstance;
 // ============================================================
 // Health Check
 // ============================================================
+
 export function getHealth() {
   return {
     initialized,
@@ -165,6 +165,7 @@ export function getHealth() {
 // ============================================================
 // Cache Keys & TTL
 // ============================================================
+
 export const CACHE_KEYS = {
   LISTING: (id: string, userId: string) => `listing:${id}:${userId}`,
   AUCTION: (id: string) => `auction:${id}`,
@@ -180,6 +181,7 @@ export const CACHE_TTL = {
 // ============================================================
 // Availability Check
 // ============================================================
+
 export function isRedisAvailable(): boolean {
   if (!redisInstance) return false;
   if (isCircuitBreakerOpen()) return false;
@@ -189,6 +191,7 @@ export function isRedisAvailable(): boolean {
 // ============================================================
 // Timeout Wrapper
 // ============================================================
+
 function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -208,6 +211,7 @@ function withTimeout<T>(
 // ============================================================
 // Centralized Handlers
 // ============================================================
+
 function handleSuccess(): void {
   consecutiveFailures = 0;
   lastError = null;
@@ -241,24 +245,21 @@ function handleFailure(operation: string, error: unknown): void {
 // ============================================================
 // Safe Redis Operations
 // ============================================================
+
 export const safeRedis = {
   async get<T>(key: string): Promise<T | null> {
     if (!isRedisAvailable()) return null;
-
     try {
       const data = await withTimeout(
         redisInstance!.get<T>(key),
         REDIS_TIMEOUT_MS,
         "GET",
       );
-
       handleSuccess();
-
       if (data !== null && data !== undefined) {
         incrementMetric("hits");
         return data;
       }
-
       incrementMetric("misses");
       return null;
     } catch (error) {
@@ -269,14 +270,12 @@ export const safeRedis = {
 
   async setex<T>(key: string, ttl: number, value: T): Promise<boolean> {
     if (!isRedisAvailable()) return false;
-
     try {
       await withTimeout(
         redisInstance!.setex(key, ttl, value),
         REDIS_TIMEOUT_MS,
         "SETEX",
       );
-
       handleSuccess();
       return true;
     } catch (error) {
@@ -287,10 +286,8 @@ export const safeRedis = {
 
   async del(key: string): Promise<boolean> {
     if (!isRedisAvailable()) return false;
-
     try {
       await withTimeout(redisInstance!.del(key), REDIS_TIMEOUT_MS, "DEL");
-
       handleSuccess();
       return true;
     } catch (error) {
@@ -301,14 +298,12 @@ export const safeRedis = {
 
   async delMany(keys: string[]): Promise<boolean> {
     if (!isRedisAvailable() || keys.length === 0) return false;
-
     try {
       await withTimeout(
         redisInstance!.del(...keys),
         REDIS_TIMEOUT_MS,
         "DELMANY",
       );
-
       handleSuccess();
       return true;
     } catch (error) {
@@ -317,3 +312,76 @@ export const safeRedis = {
     }
   },
 };
+
+// ============================================================
+// Health Probe (used by /api/health/redis)
+// ============================================================
+
+export type RedisPingResult = {
+  ok: boolean;
+  latencyMs: number | null;
+  response?: string;
+  error?: string;
+  errorKind?: "timeout" | "dns" | "auth" | "unknown";
+};
+
+export async function pingRedis(): Promise<RedisPingResult> {
+  if (!redisInstance) {
+    return {
+      ok: false,
+      latencyMs: null,
+      error: "Redis client not initialized",
+    };
+  }
+
+  if (isCircuitBreakerOpen()) {
+    return {
+      ok: false,
+      latencyMs: null,
+      error: "Circuit breaker is open",
+    };
+  }
+
+  const start = Date.now();
+
+  try {
+    const response = await withTimeout(
+      redisInstance.ping(),
+      REDIS_TIMEOUT_MS,
+      "PING",
+    );
+
+    handleSuccess();
+    const latencyMs = Date.now() - start;
+
+    const isPong =
+      typeof response === "string" && response.trim().toUpperCase() === "PONG";
+
+    if (!isPong) {
+      return {
+        ok: false,
+        latencyMs,
+        response,
+        error: "Unexpected ping response",
+        errorKind: "unknown",
+      };
+    }
+
+    return { ok: true, latencyMs, response: "PONG" };
+  } catch (error) {
+    handleFailure("PING", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+
+    let errorKind: RedisPingResult["errorKind"] = "unknown";
+    if (msg.includes("timed out")) errorKind = "timeout";
+    else if (/ENOTFOUND|getaddrinfo|EAI_AGAIN/.test(msg)) errorKind = "dns";
+    else if (/WRONGPASS|NOAUTH|unauthorized/i.test(msg)) errorKind = "auth";
+
+    return {
+      ok: false,
+      latencyMs: null,
+      error: msg,
+      errorKind,
+    };
+  }
+}
