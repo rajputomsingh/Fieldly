@@ -1,6 +1,6 @@
-// lib/services/application.service.ts
+﻿// lib/services/application.service.ts
 import { prisma } from "@/lib/prisma";
-import { ApplicationStatus, LeaseSource, Prisma } from "@prisma/client";
+import { ApplicationStatus, LeaseSource, Prisma, UserRole } from "@prisma/client";
 import { createNotification } from "@/actions/notifications/createNotification";
 import { AppError } from "@/lib/errors";
 import { LeaseService } from "./lease.service";
@@ -9,7 +9,6 @@ import { LeaseService } from "./lease.service";
 // CONTACT INFORMATION BLOCKLIST
 // ============================================
 const BLOCKED_PATTERNS = [
-  // Email symbols and domains
   "@",
   "gmail",
   "yahoo",
@@ -28,8 +27,6 @@ const BLOCKED_PATTERNS = [
   ".uk",
   ".us",
   ".dev",
-
-  // Contact keywords
   "contact",
   "call",
   "text",
@@ -44,8 +41,6 @@ const BLOCKED_PATTERNS = [
   "facebook",
   "twitter",
   "linkedin",
-
-  // Phone indicators
   "phone",
   "mobile",
   "number",
@@ -53,8 +48,6 @@ const BLOCKED_PATTERNS = [
   "+91",
   "+1",
   "+44",
-
-  // Obfuscation attempts
   "[at]",
   "[dot]",
   "(at)",
@@ -152,9 +145,6 @@ interface SanitizePermissions {
 // APPLICATION SERVICE CLASS
 // ============================================
 export class ApplicationService {
-  /**
-   * Safely convert Prisma Decimal or number to plain number
-   */
   private static toNumberSafe(value: unknown): number | null {
     if (value == null) return null;
     if (typeof value === "number") return value;
@@ -293,7 +283,7 @@ export class ApplicationService {
       await createNotification({
         userId: landownerUserId,
         type: "APPLICATION",
-        title: "📋 New Lease Application Received",
+        title: "New Lease Application Received",
         message: `${farmer.name} has applied to lease "${land.title}".`,
         entityType: "Application",
         entityId: application.id,
@@ -316,6 +306,14 @@ export class ApplicationService {
    * of the same application from both creating a lease. On serialization
    * failure Prisma aborts one transaction with a P2034 error; LeaseService's
    * idempotency guard ensures a retry does not create a duplicate lease.
+   *
+   * Authorization: the reviewer must be either the landowner of the
+   * application's land or an admin. This is resolved from the DB, not
+   * trusted from the caller.
+   *
+   * Ownership: the lease owner is the LANDOWNER
+   * (application.land.landowner.user.id), not the reviewer. An admin
+   * approving on the landowner's behalf must not become the lease owner.
    */
   static async reviewApplication(
     applicationId: string,
@@ -338,8 +336,26 @@ export class ApplicationService {
 
     if (!application) throw new AppError("Application not found", 404);
 
+    // Resolve the reviewer's role from the DB. Do not trust the caller.
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: { role: true },
+    });
+
+    const reviewerRole: UserRole | null = reviewer?.role ?? null;
+
     const landownerUserId = application.land.landowner.user.id;
-    if (landownerUserId !== reviewerId) throw new AppError("Unauthorized", 403);
+    const isLandowner = landownerUserId === reviewerId;
+    const isAdmin =
+      reviewerRole === "ADMIN" || reviewerRole === "SUPER_ADMIN";
+
+    if (!isLandowner && !isAdmin) {
+      throw new AppError(
+        "Only the landowner or an admin can review this application",
+        403,
+        "FORBIDDEN",
+      );
+    }
 
     if (!["PENDING", "UNDER_REVIEW"].includes(application.status)) {
       throw new AppError(
@@ -374,11 +390,16 @@ export class ApplicationService {
             this.toNumberSafe(application.land.expectedRentMin) ??
             0;
 
+          // The lease owner is the LANDOWNER, not the reviewer.
+          // If an admin approves on behalf of the landowner, the lease
+          // still belongs to the landowner.
+          const ownerId = application.land.landowner.user.id;
+
           const lease = await LeaseService.createFromApplication(tx, {
             applicationId,
             landId: application.landId,
             farmerId: application.farmerId,
-            ownerId: reviewerId,
+            ownerId,
             listingId: application.listingId,
             rent,
             durationMonths: application.duration,
@@ -408,6 +429,7 @@ export class ApplicationService {
               notes: data.reviewNotes ?? null,
               leaseCreated: leaseId !== null,
               leaseId,
+              reviewedByAdmin: isAdmin,
             },
           },
         });
@@ -426,8 +448,8 @@ export class ApplicationService {
         type: "APPLICATION",
         title:
           data.status === "APPROVED"
-            ? "✅ Application Approved!"
-            : "❌ Application Not Selected",
+            ? "Application Approved"
+            : "Application Not Selected",
         message:
           data.status === "APPROVED"
             ? `Great news! Your application for "${application.land.title}" has been approved.`
@@ -498,7 +520,7 @@ export class ApplicationService {
       await createNotification({
         userId: application.land.landowner.user.id,
         type: "APPLICATION",
-        title: "↩️ Application Withdrawn",
+        title: "Application Withdrawn",
         message: `${application.farmer.name} has withdrawn their application.`,
         entityType: "Application",
         entityId: applicationId,
@@ -688,9 +710,6 @@ export class ApplicationService {
     );
   }
 
-  /**
-   * Sanitize application response (remove sensitive data + convert Decimals)
-   */
   private static sanitizeApplicationResponse<T extends Record<string, unknown>>(
     app: T,
     permissions?: SanitizePermissions,

@@ -1,4 +1,4 @@
-// lib/services/lease.service.ts
+﻿// lib/services/lease.service.ts
 
 import {
   ApplicationStatus,
@@ -40,6 +40,10 @@ export type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Actors allowed to drive lease lifecycle transitions.
+ *
+ * `role` is the DB role from the User row. It is null only for users
+ * whose role has not been set yet, which should never be able to
+ * drive a lease transition.
  */
 export type LeaseActor = {
   id: string;
@@ -120,7 +124,11 @@ const ALLOWED_TRANSITIONS: Record<
 
 /**
  * Which actor roles may drive each transition.
- * SYSTEM means the transition is internal (signature/payment services).
+ *
+ * "SYSTEM" means the transition is reserved for internal services
+ * (signature, payment, cron) and must NOT be callable from an HTTP
+ * request. The transition() method enforces this by refusing to treat
+ * any HTTP caller as SYSTEM, regardless of role.
  */
 const TRANSITION_ACTORS: Record<
   LeaseLifecycleStatus,
@@ -191,7 +199,6 @@ export function computeLeaseFinancials(
     startDate.getTime() + durationMonths * DAYS_PER_MONTH * MS_PER_DAY,
   );
 
-  // Round to 2 decimals to avoid floating drift in Decimal columns.
   const round2 = (n: number) => Math.round(n * 100) / 100;
 
   return {
@@ -227,7 +234,6 @@ export class LeaseService {
     tx: DbClient,
     input: CreateFromAuctionInput,
   ) {
-    // Idempotency: one lease per listing.
     const existing = await tx.lease.findFirst({
       where: { listingId: input.listingId },
     });
@@ -275,19 +281,20 @@ export class LeaseService {
    * Create a lease from an approved application.
    *
    * Invariants:
-   *   - The application must exist and be APPROVED. Enforced here so
-   *     callers cannot accidentally create a lease for a non-approved
-   *     application — this closes the double-approval race without a
-   *     schema change.
+   *   - The application must exist and be APPROVED.
    *   - At most one non-terminal lease per (landId, farmerId). Retries
    *     return the existing lease rather than creating a duplicate.
    *   - Writes a LEASE_CREATED LeaseEvent.
+   *
+   * KNOWN LIMITATION: idempotency is enforced on (landId, farmerId)
+   * because Lease has no direct applicationId relation in the current
+   * schema. PR 4 (agreements/signatures) will add the relation and
+   * tighten this to true per-application idempotency.
    */
   static async createFromApplication(
     tx: DbClient,
     input: CreateFromApplicationInput,
   ) {
-    // 1. Verify the application exists and is APPROVED.
     const application = await tx.application.findUnique({
       where: { id: input.applicationId },
       select: { status: true, farmerId: true, landId: true },
@@ -306,10 +313,6 @@ export class LeaseService {
       );
     }
 
-    // 2. Idempotency: at most one non-terminal lease per (landId, farmerId).
-    //    Terminal states (COMPLETED / TERMINATED / RENEWED) do not block a
-    //    new lease — a farmer can re-lease the same land after a previous
-    //    lease ended.
     const existing = await tx.lease.findFirst({
       where: {
         landId: input.landId,
@@ -325,7 +328,6 @@ export class LeaseService {
     });
     if (existing) return existing;
 
-    // 3. Compute financials once, then create.
     const fin = computeLeaseFinancials(input.rent, input.durationMonths);
 
     const lease = await tx.lease.create({
@@ -523,25 +525,32 @@ export class LeaseService {
       }
 
       const allowedActors = TRANSITION_ACTORS[to];
-      const actorRole = actor.role ?? "SYSTEM";
+      const actorRole = actor.role ?? null;
       const actorIsFarmer = lease.farmerId === actor.id;
       const actorIsOwner = lease.ownerId === actor.id;
 
+      // NOTE: "SYSTEM" in TRANSITION_ACTORS is a sentinel reserved for
+      // internal service calls (signature, payment, cron). An HTTP caller
+      // can never match it — the request arrives with a real UserRole or
+      // is the farmer/owner. A null role is explicitly NOT treated as
+      // SYSTEM.
+      //
+      // This intentionally closes an authorization bypass where any
+      // authenticated user could drive transitions whose allow-list
+      // contained the string "SYSTEM".
       const permitted =
-        allowedActors.includes(actorRole as UserRole) ||
-        allowedActors.includes("SYSTEM") ||
+        (actorRole !== null && allowedActors.includes(actorRole)) ||
         (actorIsFarmer && allowedActors.includes("FARMER")) ||
         (actorIsOwner && allowedActors.includes("OWNER"));
 
       if (!permitted) {
         throw new AppError(
-          `Role ${actorRole} cannot drive transition to ${to}`,
+          `Role ${actorRole ?? "NONE"} cannot drive transition to ${to}`,
           403,
           "FORBIDDEN",
         );
       }
 
-      // Build the update data — sync legacy `status` and timestamps.
       const data: Prisma.LeaseUpdateInput = {
         lifecycleStatus: to,
       };
