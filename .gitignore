@@ -188,3 +188,9 @@ vite.config.ts.timestamp-*
 
 /generated/prisma
 
+
+# Local context dumps (one-shot dev scripts)
+pr3-context/
+pr3-context.zip
+*-context/
+*-context.zip

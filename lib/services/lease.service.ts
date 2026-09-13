@@ -1,0 +1,623 @@
+// lib/services/lease.service.ts
+
+import {
+  ApplicationStatus,
+  LeaseLifecycleStatus,
+  LeasePaymentStatus,
+  LeaseSource,
+  LeaseStatus,
+  Prisma,
+  PrismaClient,
+  UserRole,
+} from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { AppError } from "@/lib/errors";
+
+// ============================================================
+// CONSTANTS — single source of truth for financial math
+// ============================================================
+
+/** Platform commission on gross contract value. */
+export const PLATFORM_FEE_RATE = 0.05;
+
+/** Security deposit = N months' rent. */
+export const SECURITY_DEPOSIT_MULTIPLIER = 2;
+
+/** Days per month used for endDate calculation. */
+const DAYS_PER_MONTH = 30;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// ============================================================
+// TYPES
+// ============================================================
+
+/**
+ * Any Prisma client — either the singleton or a transaction client.
+ * Pass the transaction client when calling inside `prisma.$transaction`.
+ */
+export type DbClient = PrismaClient | Prisma.TransactionClient;
+
+/**
+ * Actors allowed to drive lease lifecycle transitions.
+ */
+export type LeaseActor = {
+  id: string;
+  role: UserRole | null;
+};
+
+export type CreateFromAuctionInput = {
+  listingId: string;
+  landId: string;
+  farmerId: string;
+  ownerId: string;
+  winningBidId: string;
+  rent: number;
+  durationMonths: number;
+  actorId?: string;
+};
+
+export type CreateFromApplicationInput = {
+  applicationId: string;
+  landId: string;
+  farmerId: string;
+  ownerId: string;
+  listingId?: string | null;
+  rent: number;
+  durationMonths: number;
+  source: LeaseSource;
+  actorId?: string;
+};
+
+// ============================================================
+// LIFECYCLE STATE MACHINE
+// ============================================================
+
+/**
+ * Allowed forward transitions. Key = current state, value = permitted targets.
+ * Reverse transitions are forbidden; corrections go through admin override.
+ */
+const ALLOWED_TRANSITIONS: Record<
+  LeaseLifecycleStatus,
+  LeaseLifecycleStatus[]
+> = {
+  DRAFT: [
+    LeaseLifecycleStatus.PENDING_SIGNATURES,
+    LeaseLifecycleStatus.TERMINATED,
+  ],
+  PENDING_SIGNATURES: [
+    LeaseLifecycleStatus.PENDING_FARMER_SIGNATURE,
+    LeaseLifecycleStatus.PENDING_OWNER_SIGNATURE,
+    LeaseLifecycleStatus.TERMINATED,
+  ],
+  PENDING_FARMER_SIGNATURE: [
+    LeaseLifecycleStatus.PENDING_OWNER_SIGNATURE,
+    LeaseLifecycleStatus.TERMINATED,
+  ],
+  PENDING_OWNER_SIGNATURE: [
+    LeaseLifecycleStatus.PENDING_PAYMENT,
+    LeaseLifecycleStatus.TERMINATED,
+  ],
+  PENDING_PAYMENT: [
+    LeaseLifecycleStatus.ACTIVE,
+    LeaseLifecycleStatus.TERMINATED,
+  ],
+  ACTIVE: [
+    LeaseLifecycleStatus.COMPLETED,
+    LeaseLifecycleStatus.TERMINATED,
+    LeaseLifecycleStatus.DISPUTED,
+    LeaseLifecycleStatus.RENEWED,
+  ],
+  DISPUTED: [
+    LeaseLifecycleStatus.ACTIVE,
+    LeaseLifecycleStatus.TERMINATED,
+    LeaseLifecycleStatus.COMPLETED,
+  ],
+  TERMINATED: [LeaseLifecycleStatus.RENEWED],
+  COMPLETED: [LeaseLifecycleStatus.RENEWED],
+  RENEWED: [],
+};
+
+/**
+ * Which actor roles may drive each transition.
+ * SYSTEM means the transition is internal (signature/payment services).
+ */
+const TRANSITION_ACTORS: Record<
+  LeaseLifecycleStatus,
+  Array<UserRole | "SYSTEM" | "FARMER" | "OWNER">
+> = {
+  DRAFT: ["ADMIN", "SUPER_ADMIN", "SYSTEM"],
+  PENDING_SIGNATURES: ["ADMIN", "SUPER_ADMIN", "SYSTEM"],
+  PENDING_FARMER_SIGNATURE: ["SYSTEM", "FARMER", "ADMIN", "SUPER_ADMIN"],
+  PENDING_OWNER_SIGNATURE: ["SYSTEM", "OWNER", "ADMIN", "SUPER_ADMIN"],
+  PENDING_PAYMENT: ["SYSTEM", "FARMER", "OWNER", "ADMIN", "SUPER_ADMIN"],
+  ACTIVE: ["SYSTEM", "ADMIN", "SUPER_ADMIN"],
+  DISPUTED: ["ADMIN", "SUPER_ADMIN"],
+  TERMINATED: ["SYSTEM", "ADMIN", "SUPER_ADMIN"],
+  COMPLETED: ["SYSTEM", "ADMIN", "SUPER_ADMIN"],
+  RENEWED: ["ADMIN", "SUPER_ADMIN"],
+};
+
+/** LeaseEvent type strings — must stay stable, they're audited. */
+export const LEASE_EVENTS = {
+  CREATED: "LEASE_CREATED",
+  TRANSITIONED: "LEASE_TRANSITIONED",
+  FARMER_SIGNED: "LEASE_FARMER_SIGNED",
+  OWNER_SIGNED: "LEASE_OWNER_SIGNED",
+  PAYMENT_PENDING: "LEASE_PAYMENT_PENDING",
+  ACTIVATED: "LEASE_ACTIVATED",
+  TERMINATED: "LEASE_TERMINATED",
+  COMPLETED: "LEASE_COMPLETED",
+  DISPUTED: "LEASE_DISPUTED",
+} as const;
+
+// ============================================================
+// FINANCIAL CALCULATION — one place, one truth
+// ============================================================
+
+export type LeaseFinancials = {
+  rent: number;
+  durationMonths: number;
+  securityDeposit: number;
+  grossContractValue: number;
+  platformFee: number;
+  netOwnerReceivable: number;
+  startDate: Date;
+  endDate: Date;
+};
+
+export function computeLeaseFinancials(
+  rent: number,
+  durationMonths: number,
+  startDate: Date = new Date(),
+): LeaseFinancials {
+  if (!Number.isFinite(rent) || rent <= 0) {
+    throw new AppError("Rent must be a positive number", 400, "INVALID_RENT");
+  }
+  if (!Number.isInteger(durationMonths) || durationMonths <= 0) {
+    throw new AppError(
+      "Duration must be a positive integer (months)",
+      400,
+      "INVALID_DURATION",
+    );
+  }
+
+  const grossContractValue = rent * durationMonths;
+  const platformFee = grossContractValue * PLATFORM_FEE_RATE;
+  const netOwnerReceivable = grossContractValue - platformFee;
+  const securityDeposit = rent * SECURITY_DEPOSIT_MULTIPLIER;
+
+  const endDate = new Date(
+    startDate.getTime() + durationMonths * DAYS_PER_MONTH * MS_PER_DAY,
+  );
+
+  // Round to 2 decimals to avoid floating drift in Decimal columns.
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  return {
+    rent: round2(rent),
+    durationMonths,
+    securityDeposit: round2(securityDeposit),
+    grossContractValue: round2(grossContractValue),
+    platformFee: round2(platformFee),
+    netOwnerReceivable: round2(netOwnerReceivable),
+    startDate,
+    endDate,
+  };
+}
+
+// ============================================================
+// LEASE SERVICE
+// ============================================================
+
+export class LeaseService {
+  // --------------------------------------------------------
+  // CREATE — idempotent per source entity
+  // --------------------------------------------------------
+
+  /**
+   * Create a lease from a settled auction.
+   *
+   * Invariants:
+   *   - Exactly one lease per listingId. Retries return the existing lease.
+   *   - Runs inside a transaction supplied by the caller.
+   *   - Writes a LEASE_CREATED LeaseEvent.
+   */
+  static async createFromAuction(
+    tx: DbClient,
+    input: CreateFromAuctionInput,
+  ) {
+    // Idempotency: one lease per listing.
+    const existing = await tx.lease.findFirst({
+      where: { listingId: input.listingId },
+    });
+    if (existing) return existing;
+
+    const fin = computeLeaseFinancials(input.rent, input.durationMonths);
+
+    const lease = await tx.lease.create({
+      data: {
+        landId: input.landId,
+        farmerId: input.farmerId,
+        ownerId: input.ownerId,
+        listingId: input.listingId,
+        rent: fin.rent,
+        startDate: fin.startDate,
+        endDate: fin.endDate,
+        status: LeaseStatus.DRAFT,
+        lifecycleStatus: LeaseLifecycleStatus.PENDING_SIGNATURES,
+        paymentStatus: LeasePaymentStatus.PENDING,
+        leaseSource: LeaseSource.AUCTION,
+        securityDeposit: fin.securityDeposit,
+        grossContractValue: fin.grossContractValue,
+        platformFee: fin.platformFee,
+        netOwnerReceivable: fin.netOwnerReceivable,
+      },
+    });
+
+    await this.recordEvent(tx, {
+      leaseId: lease.id,
+      actorId: input.actorId ?? input.farmerId,
+      type: LEASE_EVENTS.CREATED,
+      metadata: {
+        source: "AUCTION",
+        listingId: input.listingId,
+        winningBidId: input.winningBidId,
+        rent: fin.rent,
+        durationMonths: fin.durationMonths,
+      },
+    });
+
+    return lease;
+  }
+
+  /**
+   * Create a lease from an approved application.
+   *
+   * Invariants:
+   *   - The application must exist and be APPROVED. Enforced here so
+   *     callers cannot accidentally create a lease for a non-approved
+   *     application — this closes the double-approval race without a
+   *     schema change.
+   *   - At most one non-terminal lease per (landId, farmerId). Retries
+   *     return the existing lease rather than creating a duplicate.
+   *   - Writes a LEASE_CREATED LeaseEvent.
+   */
+  static async createFromApplication(
+    tx: DbClient,
+    input: CreateFromApplicationInput,
+  ) {
+    // 1. Verify the application exists and is APPROVED.
+    const application = await tx.application.findUnique({
+      where: { id: input.applicationId },
+      select: { status: true, farmerId: true, landId: true },
+    });
+
+    if (!application) {
+      throw new AppError("Application not found", 404, "NOT_FOUND");
+    }
+
+    if (application.status !== ApplicationStatus.APPROVED) {
+      throw new AppError(
+        "Application must be APPROVED before a lease can be created",
+        400,
+        "APPLICATION_NOT_APPROVED",
+        { currentStatus: application.status },
+      );
+    }
+
+    // 2. Idempotency: at most one non-terminal lease per (landId, farmerId).
+    //    Terminal states (COMPLETED / TERMINATED / RENEWED) do not block a
+    //    new lease — a farmer can re-lease the same land after a previous
+    //    lease ended.
+    const existing = await tx.lease.findFirst({
+      where: {
+        landId: input.landId,
+        farmerId: input.farmerId,
+        lifecycleStatus: {
+          notIn: [
+            LeaseLifecycleStatus.TERMINATED,
+            LeaseLifecycleStatus.COMPLETED,
+            LeaseLifecycleStatus.RENEWED,
+          ],
+        },
+      },
+    });
+    if (existing) return existing;
+
+    // 3. Compute financials once, then create.
+    const fin = computeLeaseFinancials(input.rent, input.durationMonths);
+
+    const lease = await tx.lease.create({
+      data: {
+        landId: input.landId,
+        farmerId: input.farmerId,
+        ownerId: input.ownerId,
+        listingId: input.listingId ?? null,
+        rent: fin.rent,
+        startDate: fin.startDate,
+        endDate: fin.endDate,
+        status: LeaseStatus.PENDING_SIGNATURE,
+        lifecycleStatus: LeaseLifecycleStatus.PENDING_SIGNATURES,
+        paymentStatus: LeasePaymentStatus.PENDING,
+        leaseSource: input.source,
+        securityDeposit: fin.securityDeposit,
+        grossContractValue: fin.grossContractValue,
+        platformFee: fin.platformFee,
+        netOwnerReceivable: fin.netOwnerReceivable,
+      },
+    });
+
+    await this.recordEvent(tx, {
+      leaseId: lease.id,
+      actorId: input.actorId ?? input.ownerId,
+      type: LEASE_EVENTS.CREATED,
+      metadata: {
+        source: input.source,
+        applicationId: input.applicationId,
+        rent: fin.rent,
+        durationMonths: fin.durationMonths,
+      },
+    });
+
+    return lease;
+  }
+
+  // --------------------------------------------------------
+  // READ
+  // --------------------------------------------------------
+
+  static async getById(leaseId: string, actor: LeaseActor) {
+    const lease = await prisma.lease.findUnique({
+      where: { id: leaseId },
+      include: {
+        land: {
+          select: { id: true, title: true, district: true, state: true },
+        },
+        farmer: {
+          select: { id: true, name: true, email: true, imageUrl: true },
+        },
+        owner: {
+          select: { id: true, name: true, email: true, imageUrl: true },
+        },
+        listing: { select: { id: true, title: true, status: true } },
+        agreements: {
+          orderBy: { version: "desc" },
+          take: 1,
+          include: { signatures: true },
+        },
+        events: { orderBy: { createdAt: "desc" }, take: 50 },
+        paymentSchedule: { orderBy: { installmentNo: "asc" } },
+      },
+    });
+
+    if (!lease) throw new AppError("Lease not found", 404, "NOT_FOUND");
+    this.authorize(actor, lease, "read");
+    return lease;
+  }
+
+  static async listForUser(
+    actor: LeaseActor,
+    opts: {
+      lifecycleStatus?: LeaseLifecycleStatus;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) {
+    const limit = Math.min(opts.limit ?? 20, 100);
+    const offset = opts.offset ?? 0;
+
+    const where: Prisma.LeaseWhereInput = {};
+    if (opts.lifecycleStatus) where.lifecycleStatus = opts.lifecycleStatus;
+
+    if (actor.role === "ADMIN" || actor.role === "SUPER_ADMIN") {
+      // admins see all
+    } else if (actor.role === "FARMER") {
+      where.farmerId = actor.id;
+    } else if (actor.role === "LANDOWNER") {
+      where.ownerId = actor.id;
+    } else {
+      throw new AppError("Forbidden", 403, "FORBIDDEN");
+    }
+
+    const [leases, total] = await Promise.all([
+      prisma.lease.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+        include: {
+          land: { select: { id: true, title: true } },
+          farmer: { select: { id: true, name: true, imageUrl: true } },
+          owner: { select: { id: true, name: true, imageUrl: true } },
+        },
+      }),
+      prisma.lease.count({ where }),
+    ]);
+
+    return {
+      leases,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // --------------------------------------------------------
+  // AUTHORIZATION
+  // --------------------------------------------------------
+
+  static authorize(
+    actor: LeaseActor,
+    lease: { farmerId: string; ownerId: string },
+    action: "read" | "transition" | "sign" | "pay",
+  ): void {
+    const isAdmin = actor.role === "ADMIN" || actor.role === "SUPER_ADMIN";
+    const isFarmer = lease.farmerId === actor.id;
+    const isOwner = lease.ownerId === actor.id;
+
+    if (isAdmin) return;
+
+    switch (action) {
+      case "read":
+        if (!isFarmer && !isOwner) {
+          throw new AppError("Forbidden", 403, "FORBIDDEN");
+        }
+        return;
+
+      case "sign":
+        if (!isFarmer && !isOwner) {
+          throw new AppError(
+            "Only parties to the lease can sign",
+            403,
+            "FORBIDDEN",
+          );
+        }
+        return;
+
+      case "pay":
+        if (!isFarmer && !isOwner) {
+          throw new AppError(
+            "Only parties to the lease can pay",
+            403,
+            "FORBIDDEN",
+          );
+        }
+        return;
+
+      case "transition":
+        if (!isFarmer && !isOwner) {
+          throw new AppError("Forbidden", 403, "FORBIDDEN");
+        }
+        return;
+    }
+  }
+
+  // --------------------------------------------------------
+  // TRANSITION — validated state machine
+  // --------------------------------------------------------
+
+  static async transition(
+    leaseId: string,
+    to: LeaseLifecycleStatus,
+    actor: LeaseActor,
+    reason?: string,
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const lease = await tx.lease.findUnique({ where: { id: leaseId } });
+      if (!lease) throw new AppError("Lease not found", 404, "NOT_FOUND");
+
+      this.authorize(actor, lease, "transition");
+
+      const from = lease.lifecycleStatus;
+      if (!ALLOWED_TRANSITIONS[from].includes(to)) {
+        throw new AppError(
+          `Cannot transition lease from ${from} to ${to}`,
+          400,
+          "INVALID_TRANSITION",
+          { from, to },
+        );
+      }
+
+      const allowedActors = TRANSITION_ACTORS[to];
+      const actorRole = actor.role ?? "SYSTEM";
+      const actorIsFarmer = lease.farmerId === actor.id;
+      const actorIsOwner = lease.ownerId === actor.id;
+
+      const permitted =
+        allowedActors.includes(actorRole as UserRole) ||
+        allowedActors.includes("SYSTEM") ||
+        (actorIsFarmer && allowedActors.includes("FARMER")) ||
+        (actorIsOwner && allowedActors.includes("OWNER"));
+
+      if (!permitted) {
+        throw new AppError(
+          `Role ${actorRole} cannot drive transition to ${to}`,
+          403,
+          "FORBIDDEN",
+        );
+      }
+
+      // Build the update data — sync legacy `status` and timestamps.
+      const data: Prisma.LeaseUpdateInput = {
+        lifecycleStatus: to,
+      };
+
+      switch (to) {
+        case LeaseLifecycleStatus.ACTIVE:
+          data.status = LeaseStatus.ACTIVE;
+          data.activatedAt = new Date();
+          break;
+        case LeaseLifecycleStatus.COMPLETED:
+          data.status = LeaseStatus.COMPLETED;
+          break;
+        case LeaseLifecycleStatus.TERMINATED:
+          data.status = LeaseStatus.TERMINATED;
+          data.terminatedAt = new Date();
+          data.terminatedBy = actor.id;
+          break;
+        case LeaseLifecycleStatus.RENEWED:
+          data.status = LeaseStatus.RENEWED;
+          break;
+        case LeaseLifecycleStatus.PENDING_SIGNATURES:
+          data.status = LeaseStatus.PENDING_SIGNATURE;
+          break;
+        default:
+          break;
+      }
+
+      const updated = await tx.lease.update({
+        where: { id: leaseId },
+        data,
+      });
+
+      await this.recordEvent(tx, {
+        leaseId,
+        actorId: actor.id,
+        type: LEASE_EVENTS.TRANSITIONED,
+        metadata: { from, to, reason: reason ?? null },
+      });
+
+      return updated;
+    });
+  }
+
+  // --------------------------------------------------------
+  // EVENT — every caller writes through this
+  // --------------------------------------------------------
+
+  static async recordEvent(
+    tx: DbClient,
+    event: {
+      leaseId: string;
+      actorId?: string | null;
+      type: string;
+      metadata?: Prisma.InputJsonValue;
+    },
+  ) {
+    await tx.leaseEvent.create({
+      data: {
+        leaseId: event.leaseId,
+        actorId: event.actorId ?? null,
+        type: event.type,
+        metadata: event.metadata ?? {},
+      },
+    });
+  }
+
+  // --------------------------------------------------------
+  // RESOLVE USER — Clerk ID → DB user
+  // --------------------------------------------------------
+
+  static async resolveActor(clerkUserId: string): Promise<LeaseActor> {
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId },
+      select: { id: true, role: true },
+    });
+    if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
+    return { id: user.id, role: user.role };
+  }
+}
