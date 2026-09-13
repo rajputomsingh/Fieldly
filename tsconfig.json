@@ -4,7 +4,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "types": ["node"],
 
-    "allowJs": true,  
+    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -33,5 +33,10 @@
     "**/*.mts"
   ],
 
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "pr3-context",
+    "*-context",
+    ".next/cache"
+  ]
 }
