@@ -1,36 +1,29 @@
-// app/api/admin/applications/bulk-review/route.ts
+﻿// app/api/admin/applications/bulk-review/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { requireAdmin } from "@/lib/server/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/actions/notifications/createNotification";
+import { LeaseService } from "@/lib/services/lease.service";
+import { handleError, AppError } from "@/lib/errors";
+import { ApplicationStatus, LeaseSource, Prisma } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 1. Admin authorization gate.
+    const admin = await requireAdmin();
 
-    const admin = await prisma.user.findUnique({
-      where: { clerkUserId: userId },
-      select: { role: true, id: true, name: true },
-    });
-
-    if (!admin || (admin.role !== "ADMIN" && admin.role !== "SUPER_ADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+    // 2. Parse and validate request.
     const body = await req.json();
     const { applicationIds, action, notes } = body;
 
-    if (!applicationIds?.length || !action) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
+      throw new AppError("applicationIds must be a non-empty array", 400, "INVALID_INPUT");
+    }
+    if (action !== "APPROVE" && action !== "REJECT") {
+      throw new AppError("action must be APPROVE or REJECT", 400, "INVALID_ACTION");
     }
 
-    // First, fetch applications outside transaction
+    // 3. Fetch eligible applications outside the transaction.
     const applications = await prisma.application.findMany({
       where: {
         id: { in: applicationIds },
@@ -51,27 +44,33 @@ export async function POST(req: NextRequest) {
     });
 
     if (applications.length === 0) {
-      return NextResponse.json(
-        { error: "No valid applications found" },
-        { status: 400 },
-      );
+      throw new AppError("No valid applications found", 400, "NO_VALID_APPLICATIONS");
     }
 
-    // Shorter transaction - only database updates
+    // 4. Process in a single transaction. Serializable isolation ensures
+    //    that concurrent bulk or single reviews cannot race into duplicate
+    //    leases. LeaseService.createFromApplication is idempotent per
+    //    (landId, farmerId) while the lease is non-terminal.
     const results = await prisma.$transaction(
       async (tx) => {
         const updated = [];
 
         for (const app of applications) {
-          // Update application
+          const targetStatus =
+            action === "APPROVE"
+              ? ApplicationStatus.APPROVED
+              : ApplicationStatus.REJECTED;
+
           const updatedApp = await tx.application.update({
             where: { id: app.id },
             data: {
-              status: action === "APPROVE" ? "APPROVED" : "REJECTED",
-              reviewNotes: notes || null,
+              status: targetStatus,
+              reviewNotes: notes ?? null,
               reviewedAt: new Date(),
             },
           });
+
+          let leaseId: string | null = null;
 
           if (action === "APPROVE") {
             const rent =
@@ -79,28 +78,20 @@ export async function POST(req: NextRequest) {
               app.land.expectedRentMin?.toNumber() ??
               0;
 
-            // Create lease
-            await tx.lease.create({
-              data: {
-                landId: app.landId,
-                farmerId: app.farmerId,
-                ownerId: app.land.landowner.user.id,
-                listingId: app.listingId,
-                rent,
-                startDate: new Date(),
-                endDate: new Date(
-                  Date.now() + app.duration * 30 * 24 * 60 * 60 * 1000,
-                ),
-                status: "PENDING_SIGNATURE",
-                leaseSource: app.listingId ? "AUCTION" : "DIRECT",
-                securityDeposit: rent * 2,
-                grossContractValue: rent * app.duration,
-                platformFee: rent * app.duration * 0.05,
-                netOwnerReceivable: rent * app.duration * 0.95,
-              },
+            const lease = await LeaseService.createFromApplication(tx, {
+              applicationId: app.id,
+              landId: app.landId,
+              farmerId: app.farmerId,
+              ownerId: app.land.landowner.user.id,
+              listingId: app.listingId,
+              rent,
+              durationMonths: app.duration,
+              source: app.listingId ? LeaseSource.AUCTION : LeaseSource.DIRECT,
+              actorId: admin.id,
             });
 
-            // Update listing if applicable
+            leaseId = lease.id;
+
             if (app.listingId) {
               await tx.landListing.update({
                 where: { id: app.listingId },
@@ -109,18 +100,19 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Create audit log
           await tx.auditLog.create({
             data: {
               userId: admin.id,
-              action: `APPLICATION_${action === "APPROVE" ? "APPROVED" : "REJECTED"}`,
+              action: `APPLICATION_${targetStatus}`,
               entity: "Application",
               entityId: app.id,
               metadata: {
-                reviewNotes: notes,
+                reviewNotes: notes ?? null,
                 bulkAction: true,
                 reviewedBy: "ADMIN",
-              },
+                leaseCreated: leaseId !== null,
+                leaseId,
+              } as Prisma.InputJsonValue,
             },
           });
 
@@ -130,21 +122,21 @@ export async function POST(req: NextRequest) {
         return updated;
       },
       {
-        timeout: 15000, // Increase timeout to 15 seconds
+        timeout: 15000,
+        isolationLevel: "Serializable",
       },
     );
 
-    // Send notifications OUTSIDE the transaction (non-blocking)
+    // 5. Notifications fire after the transaction commits. Non-blocking.
     Promise.allSettled(
       applications.flatMap((app) => [
-        // Notify farmer
         createNotification({
           userId: app.farmerId,
           type: "APPLICATION",
           title:
             action === "APPROVE"
-              ? "✅ Application Approved!"
-              : "❌ Application Not Selected",
+              ? "Application Approved"
+              : "Application Not Selected",
           message:
             action === "APPROVE"
               ? `Great news! Your application for "${app.land.title}" has been approved.`
@@ -155,22 +147,20 @@ export async function POST(req: NextRequest) {
           priority: "HIGH",
         }).catch((err) => console.error("Failed to notify farmer:", err)),
 
-        // Notify landowner
         createNotification({
           userId: app.land.landowner.user.id,
           type: "APPLICATION",
           title: `Application ${action === "APPROVE" ? "Approved" : "Rejected"}`,
-          message: `The application from ${app.farmer.name} for "${app.land.title}" has been ${action === "APPROVE" ? "approved" : "rejected"} by an administrator.`,
+          message: `The application from ${app.farmer.name} for "${app.land.title}" has been ${
+            action === "APPROVE" ? "approved" : "rejected"
+          } by an administrator.`,
           entityType: "Application",
           entityId: app.id,
           actionUrl: `/applications/${app.id}`,
           priority: "MEDIUM",
         }).catch((err) => console.error("Failed to notify landowner:", err)),
       ]),
-    ).then((results) => {
-      const succeeded = results.filter((r) => r.status === "fulfilled").length;
-      console.log(`✅ Sent ${succeeded} notifications`);
-    });
+    );
 
     return NextResponse.json({
       success: true,
@@ -178,12 +168,9 @@ export async function POST(req: NextRequest) {
       applications: results.map((a) => ({ id: a.id, status: a.status })),
     });
   } catch (error) {
-    console.error("[ADMIN_BULK_REVIEW]", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 },
-    );
+    return handleError(error, {
+      route: "/api/admin/applications/bulk-review",
+      method: "POST",
+    });
   }
 }
