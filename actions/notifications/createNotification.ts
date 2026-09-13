@@ -1,4 +1,4 @@
-// actions/notifications/createNotification.ts
+﻿// actions/notifications/createNotification.ts
 'use server';
 
 import { auth } from '@clerk/nextjs/server';
@@ -6,16 +6,35 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-// 🔧 FIX: Make actionUrl accept relative paths
+// URL prefixes we allow in notification actionUrl. Prevents drift where a
+// lease notification points at /applications and vice versa.
+const ALLOWED_URL_PREFIXES = [
+  '/leases',
+  '/applications',
+  '/marketplace',
+  '/landowner',
+  '/farmer',
+  '/admin',
+  '/profile',
+  '/saved',
+  '/insights',
+] as const;
+
 const createNotificationSchema = z.object({
   userId: z.string(),
   type: z.enum([
-    'SYSTEM', 'LEASE', 'PAYMENT', 'MESSAGE', 
-    'LISTING', 'BID', 'REVIEW', 'APPLICATION', 'REMINDER'
+    'SYSTEM',
+    'LEASE',
+    'PAYMENT',
+    'MESSAGE',
+    'LISTING',
+    'BID',
+    'REVIEW',
+    'APPLICATION',
+    'REMINDER',
   ] as const),
   title: z.string().min(1).max(100),
   message: z.string().min(1).max(500),
-  // 🔧 FIX: Use string() instead of url() to allow relative paths
   actionUrl: z.string().optional().nullable(),
   entityType: z.string().optional().nullable(),
   entityId: z.string().optional().nullable(),
@@ -24,15 +43,26 @@ const createNotificationSchema = z.object({
 
 type CreateNotificationInput = z.infer<typeof createNotificationSchema>;
 
+function isValidActionUrl(url: string | null | undefined): boolean {
+  if (!url) return true;
+  return ALLOWED_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
+}
+
 export async function createNotification(input: CreateNotificationInput) {
   try {
     const { userId: authUserId } = await auth();
-    
+
     if (!authUserId) {
       throw new Error('Unauthorized');
     }
 
     const validated = createNotificationSchema.parse(input);
+
+    if (!isValidActionUrl(validated.actionUrl)) {
+      throw new Error(
+        `Invalid actionUrl: must start with one of ${ALLOWED_URL_PREFIXES.join(', ')}`,
+      );
+    }
 
     const notification = await prisma.notification.create({
       data: {
@@ -47,7 +77,7 @@ export async function createNotification(input: CreateNotificationInput) {
     });
 
     revalidatePath('/api/notifications');
-    
+
     return { success: true, notification };
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -56,19 +86,29 @@ export async function createNotification(input: CreateNotificationInput) {
 }
 
 export async function createBulkNotifications(
-  notifications: CreateNotificationInput[]
+  notifications: CreateNotificationInput[],
 ) {
   try {
     const { userId } = await auth();
-    
+
     if (!userId) {
       throw new Error('Unauthorized');
     }
 
-    const validated = notifications.map(n => createNotificationSchema.parse(n));
+    const validated = notifications.map((n) =>
+      createNotificationSchema.parse(n),
+    );
+
+    for (const n of validated) {
+      if (!isValidActionUrl(n.actionUrl)) {
+        throw new Error(
+          `Invalid actionUrl: must start with one of ${ALLOWED_URL_PREFIXES.join(', ')}`,
+        );
+      }
+    }
 
     const created = await prisma.notification.createMany({
-      data: validated.map(n => ({
+      data: validated.map((n) => ({
         userId: n.userId,
         type: n.type,
         title: n.title,
@@ -80,7 +120,7 @@ export async function createBulkNotifications(
     });
 
     revalidatePath('/api/notifications');
-    
+
     return { success: true, count: created.count };
   } catch (error) {
     console.error('Error creating bulk notifications:', error);
