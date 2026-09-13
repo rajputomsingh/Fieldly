@@ -1,8 +1,9 @@
 // lib/services/application.service.ts
 import { prisma } from "@/lib/prisma";
-import { ApplicationStatus, Prisma } from "@prisma/client";
+import { ApplicationStatus, LeaseSource, Prisma } from "@prisma/client";
 import { createNotification } from "@/actions/notifications/createNotification";
 import { AppError } from "@/lib/errors";
+import { LeaseService } from "./lease.service";
 
 // ============================================
 // CONTACT INFORMATION BLOCKLIST
@@ -307,7 +308,14 @@ export class ApplicationService {
   }
 
   /**
-   * Review application (approve/reject)
+   * Review application (approve/reject).
+   *
+   * When APPROVED, this delegates lease creation to LeaseService.
+   *
+   * Runs under Serializable isolation to prevent two concurrent approvals
+   * of the same application from both creating a lease. On serialization
+   * failure Prisma aborts one transaction with a P2034 error; LeaseService's
+   * idempotency guard ensures a retry does not create a duplicate lease.
    */
   static async reviewApplication(
     applicationId: string,
@@ -347,62 +355,70 @@ export class ApplicationService {
       );
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const app = await tx.application.update({
-        where: { id: applicationId },
-        data: {
-          status: data.status,
-          reviewNotes: data.reviewNotes,
-          reviewedAt: new Date(),
-        },
-      });
-
-      if (data.status === "APPROVED") {
-        const rent =
-          this.toNumberSafe(application.proposedRent) ??
-          this.toNumberSafe(application.land.expectedRentMin) ??
-          0;
-
-        await tx.lease.create({
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const app = await tx.application.update({
+          where: { id: applicationId },
           data: {
+            status: data.status,
+            reviewNotes: data.reviewNotes,
+            reviewedAt: new Date(),
+          },
+        });
+
+        let leaseId: string | null = null;
+
+        if (data.status === "APPROVED") {
+          const rent =
+            this.toNumberSafe(application.proposedRent) ??
+            this.toNumberSafe(application.land.expectedRentMin) ??
+            0;
+
+          const lease = await LeaseService.createFromApplication(tx, {
+            applicationId,
             landId: application.landId,
             farmerId: application.farmerId,
             ownerId: reviewerId,
             listingId: application.listingId,
             rent,
-            startDate: new Date(),
-            endDate: new Date(
-              Date.now() + application.duration * 30 * 24 * 60 * 60 * 1000,
-            ),
-            status: "PENDING_SIGNATURE",
-            leaseSource: application.listingId ? "AUCTION" : "DIRECT",
-            securityDeposit: rent * 2,
-            grossContractValue: rent * application.duration,
-            platformFee: rent * application.duration * 0.05,
-            netOwnerReceivable: rent * application.duration * 0.95,
+            durationMonths: application.duration,
+            source: application.listingId
+              ? LeaseSource.AUCTION
+              : LeaseSource.DIRECT,
+            actorId: reviewerId,
+          });
+
+          leaseId = lease.id;
+        }
+
+        if (application.listingId && data.status === "APPROVED") {
+          await tx.landListing.update({
+            where: { id: application.listingId },
+            data: { status: "CLOSED" },
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            userId: reviewerId,
+            action: `APPLICATION_${data.status}`,
+            entity: "Application",
+            entityId: applicationId,
+            metadata: {
+              notes: data.reviewNotes ?? null,
+              leaseCreated: leaseId !== null,
+              leaseId,
+            },
           },
         });
-      }
 
-      if (application.listingId && data.status === "APPROVED") {
-        await tx.landListing.update({
-          where: { id: application.listingId },
-          data: { status: "CLOSED" },
-        });
-      }
-
-      await tx.auditLog.create({
-        data: {
-          userId: reviewerId,
-          action: `APPLICATION_${data.status}`,
-          entity: "Application",
-          entityId: applicationId,
-          metadata: { notes: data.reviewNotes },
-        },
-      });
-
-      return app;
-    });
+        return app;
+      },
+      {
+        isolationLevel: "Serializable",
+        timeout: 15000,
+      },
+    );
 
     try {
       await createNotification({
@@ -586,7 +602,6 @@ export class ApplicationService {
           app as unknown as Record<string, unknown>,
         ),
       ),
-
       total,
       hasMore: total > (filters?.offset || 0) + (filters?.limit || 20),
     };
@@ -682,7 +697,6 @@ export class ApplicationService {
   ): SanitizedApplicationResponse {
     const sanitized = { ...app } as unknown as SanitizedApplicationResponse;
 
-    // Convert Decimal fields to numbers
     sanitized.proposedRent = this.toNumberSafe(sanitized.proposedRent);
 
     if (sanitized.land) {
@@ -698,7 +712,6 @@ export class ApplicationService {
       listing.basePrice = this.toNumberSafe(listing.basePrice) ?? 0;
     }
 
-    // Remove sensitive fields
     if (sanitized.farmer) {
       if (!permissions?.isLandowner && !permissions?.isAdmin) {
         delete sanitized.farmer.email;
