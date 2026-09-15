@@ -6,3 +6,5 @@ export const supabaseAdmin = createClient(
 )
 
 export const LAND_BUCKET = "lands"
+export const LEASE_AGREEMENTS_BUCKET = "lease-agreements";
+  
