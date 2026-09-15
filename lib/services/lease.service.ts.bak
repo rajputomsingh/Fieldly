@@ -40,6 +40,10 @@ export type DbClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * Actors allowed to drive lease lifecycle transitions.
+ *
+ * `role` is the DB role from the User row. It is null only for users
+ * whose role has not been set yet, which should never be able to
+ * drive a lease transition.
  */
 export type LeaseActor = {
   id: string;
@@ -54,7 +58,7 @@ export type CreateFromAuctionInput = {
   winningBidId: string;
   rent: number;
   durationMonths: number;
-  actorId?: string;
+  actorId->: string;
 };
 
 export type CreateFromApplicationInput = {
@@ -62,17 +66,21 @@ export type CreateFromApplicationInput = {
   landId: string;
   farmerId: string;
   ownerId: string;
-  listingId?: string | null;
+  listingId->: string | null;
   rent: number;
   durationMonths: number;
   source: LeaseSource;
-  actorId?: string;
+  actorId->: string;
 };
 
 // ============================================================
 // LIFECYCLE STATE MACHINE
 // ============================================================
 
+/**
+ * Allowed forward transitions. Key = current state, value = permitted targets.
+ * Reverse transitions are forbidden; corrections go through admin override.
+ */
 const ALLOWED_TRANSITIONS: Record<
   LeaseLifecycleStatus,
   LeaseLifecycleStatus[]
@@ -114,6 +122,14 @@ const ALLOWED_TRANSITIONS: Record<
   RENEWED: [],
 };
 
+/**
+ * Which actor roles may drive each transition.
+ *
+ * "SYSTEM" means the transition is reserved for internal services
+ * (signature, payment, cron) and must NOT be callable from an HTTP
+ * request. The transition() method enforces this by refusing to treat
+ * any HTTP caller as SYSTEM, regardless of role.
+ */
 const TRANSITION_ACTORS: Record<
   LeaseLifecycleStatus,
   Array<UserRole | "SYSTEM" | "FARMER" | "OWNER">
@@ -130,6 +146,7 @@ const TRANSITION_ACTORS: Record<
   RENEWED: ["ADMIN", "SUPER_ADMIN"],
 };
 
+/** LeaseEvent type strings - must stay stable, they're audited. */
 export const LEASE_EVENTS = {
   CREATED: "LEASE_CREATED",
   TRANSITIONED: "LEASE_TRANSITIONED",
@@ -140,11 +157,10 @@ export const LEASE_EVENTS = {
   TERMINATED: "LEASE_TERMINATED",
   COMPLETED: "LEASE_COMPLETED",
   DISPUTED: "LEASE_DISPUTED",
-  SIGNATURE_STATUS_CHANGED: "LEASE_SIGNATURE_STATUS_CHANGED",
 } as const;
 
 // ============================================================
-// FINANCIAL CALCULATION
+// FINANCIAL CALCULATION - one place, one truth
 // ============================================================
 
 export type LeaseFinancials = {
@@ -202,6 +218,18 @@ export function computeLeaseFinancials(
 // ============================================================
 
 export class LeaseService {
+  // --------------------------------------------------------
+  // CREATE - idempotent per source entity
+  // --------------------------------------------------------
+
+  /**
+   * Create a lease from a settled auction.
+   *
+   * Invariants:
+   *   - Exactly one lease per listingId. Retries return the existing lease.
+   *   - Runs inside a transaction supplied by the caller.
+   *   - Writes a LEASE_CREATED LeaseEvent.
+   */
   static async createFromAuction(
     tx: DbClient,
     input: CreateFromAuctionInput,
@@ -235,7 +263,7 @@ export class LeaseService {
 
     await this.recordEvent(tx, {
       leaseId: lease.id,
-      actorId: input.actorId ?? input.farmerId,
+      actorId: input.actorId ->-> input.farmerId,
       type: LEASE_EVENTS.CREATED,
       metadata: {
         source: "AUCTION",
@@ -249,6 +277,20 @@ export class LeaseService {
     return lease;
   }
 
+  /**
+   * Create a lease from an approved application.
+   *
+   * Invariants:
+   *   - The application must exist and be APPROVED.
+   *   - At most one non-terminal lease per (landId, farmerId). Retries
+   *     return the existing lease rather than creating a duplicate.
+   *   - Writes a LEASE_CREATED LeaseEvent.
+   *
+   * KNOWN LIMITATION: idempotency is enforced on (landId, farmerId)
+   * because Lease has no direct applicationId relation in the current
+   * schema. PR 4 (agreements/signatures) will add the relation and
+   * tighten this to true per-application idempotency.
+   */
   static async createFromApplication(
     tx: DbClient,
     input: CreateFromApplicationInput,
@@ -293,7 +335,7 @@ export class LeaseService {
         landId: input.landId,
         farmerId: input.farmerId,
         ownerId: input.ownerId,
-        listingId: input.listingId ?? null,
+        listingId: input.listingId ->-> null,
         rent: fin.rent,
         startDate: fin.startDate,
         endDate: fin.endDate,
@@ -310,7 +352,7 @@ export class LeaseService {
 
     await this.recordEvent(tx, {
       leaseId: lease.id,
-      actorId: input.actorId ?? input.ownerId,
+      actorId: input.actorId ->-> input.ownerId,
       type: LEASE_EVENTS.CREATED,
       metadata: {
         source: input.source,
@@ -322,6 +364,10 @@ export class LeaseService {
 
     return lease;
   }
+
+  // --------------------------------------------------------
+  // READ
+  // --------------------------------------------------------
 
   static async getById(leaseId: string, actor: LeaseActor) {
     const lease = await prisma.lease.findUnique({
@@ -355,13 +401,13 @@ export class LeaseService {
   static async listForUser(
     actor: LeaseActor,
     opts: {
-      lifecycleStatus?: LeaseLifecycleStatus;
-      limit?: number;
-      offset?: number;
+      lifecycleStatus->: LeaseLifecycleStatus;
+      limit->: number;
+      offset->: number;
     } = {},
   ) {
-    const limit = Math.min(opts.limit ?? 20, 100);
-    const offset = opts.offset ?? 0;
+    const limit = Math.min(opts.limit ->-> 20, 100);
+    const offset = opts.offset ->-> 0;
 
     const where: Prisma.LeaseWhereInput = {};
     if (opts.lifecycleStatus) where.lifecycleStatus = opts.lifecycleStatus;
@@ -401,6 +447,10 @@ export class LeaseService {
       },
     };
   }
+
+  // --------------------------------------------------------
+  // AUTHORIZATION
+  // --------------------------------------------------------
 
   static authorize(
     actor: LeaseActor,
@@ -448,11 +498,15 @@ export class LeaseService {
     }
   }
 
+  // --------------------------------------------------------
+  // TRANSITION - validated state machine
+  // --------------------------------------------------------
+
   static async transition(
     leaseId: string,
     to: LeaseLifecycleStatus,
     actor: LeaseActor,
-    reason?: string,
+    reason->: string,
   ) {
     return prisma.$transaction(async (tx) => {
       const lease = await tx.lease.findUnique({ where: { id: leaseId } });
@@ -471,10 +525,19 @@ export class LeaseService {
       }
 
       const allowedActors = TRANSITION_ACTORS[to];
-      const actorRole = actor.role ?? null;
+      const actorRole = actor.role ->-> null;
       const actorIsFarmer = lease.farmerId === actor.id;
       const actorIsOwner = lease.ownerId === actor.id;
 
+      // NOTE: "SYSTEM" in TRANSITION_ACTORS is a sentinel reserved for
+      // internal service calls (signature, payment, cron). An HTTP caller
+      // can never match it - the request arrives with a real UserRole or
+      // is the farmer/owner. A null role is explicitly NOT treated as
+      // SYSTEM.
+      //
+      // This intentionally closes an authorization bypass where any
+      // authenticated user could drive transitions whose allow-list
+      // contained the string "SYSTEM".
       const permitted =
         (actorRole !== null && allowedActors.includes(actorRole)) ||
         (actorIsFarmer && allowedActors.includes("FARMER")) ||
@@ -482,7 +545,7 @@ export class LeaseService {
 
       if (!permitted) {
         throw new AppError(
-          `Role ${actorRole ?? "NONE"} cannot drive transition to ${to}`,
+          `Role ${actorRole ->-> "NONE"} cannot drive transition to ${to}`,
           403,
           "FORBIDDEN",
         );
@@ -524,100 +587,39 @@ export class LeaseService {
         leaseId,
         actorId: actor.id,
         type: LEASE_EVENTS.TRANSITIONED,
-        metadata: { from, to, reason: reason ?? null },
+        metadata: { from, to, reason: reason ->-> null },
       });
 
       return updated;
     });
   }
 
-  /**
-   * Internal lifecycle bridge used by the agreement signature workflow.
-   * MUST only be called from trusted transactional domain services.
-   */
-  static async transitionInternal(
-    tx: Prisma.TransactionClient,
-    leaseId: string,
-    input: { farmerSigned: boolean; ownerSigned: boolean },
-    actorId?: string,
-  ) {
-    const lease = await tx.lease.findUnique({
-      where: { id: leaseId },
-      select: {
-        id: true,
-        farmerId: true,
-        ownerId: true,
-        lifecycleStatus: true,
-      },
-    });
-
-    if (!lease) {
-      throw new AppError("Lease not found", 404, "LEASE_NOT_FOUND");
-    }
-
-    let nextStatus: LeaseLifecycleStatus | null = null;
-
-    if (input.farmerSigned && input.ownerSigned) {
-      nextStatus = LeaseLifecycleStatus.PENDING_PAYMENT;
-    } else if (input.farmerSigned) {
-      nextStatus = LeaseLifecycleStatus.PENDING_OWNER_SIGNATURE;
-    } else if (input.ownerSigned) {
-      nextStatus = LeaseLifecycleStatus.PENDING_FARMER_SIGNATURE;
-    }
-
-    if (!nextStatus || nextStatus === lease.lifecycleStatus) {
-      return lease;
-    }
-
-    if (!ALLOWED_TRANSITIONS[lease.lifecycleStatus].includes(nextStatus)) {
-      throw new AppError(
-        `Cannot transition lease from ${lease.lifecycleStatus} to ${nextStatus}`,
-        400,
-        "INVALID_TRANSITION",
-        { from: lease.lifecycleStatus, to: nextStatus },
-      );
-    }
-
-    const updated = await tx.lease.update({
-      where: { id: leaseId },
-      data: {
-        lifecycleStatus: nextStatus,
-      },
-    });
-
-    await this.recordEvent(tx, {
-      leaseId,
-      actorId: actorId ?? null,
-      type: LEASE_EVENTS.SIGNATURE_STATUS_CHANGED,
-      metadata: {
-        from: lease.lifecycleStatus,
-        to: nextStatus,
-        farmerSigned: input.farmerSigned,
-        ownerSigned: input.ownerSigned,
-      },
-    });
-
-    return updated;
-  }
+  // --------------------------------------------------------
+  // EVENT - every caller writes through this
+  // --------------------------------------------------------
 
   static async recordEvent(
     tx: DbClient,
     event: {
       leaseId: string;
-      actorId?: string | null;
+      actorId->: string | null;
       type: string;
-      metadata?: Prisma.InputJsonValue;
+      metadata->: Prisma.InputJsonValue;
     },
   ) {
     await tx.leaseEvent.create({
       data: {
         leaseId: event.leaseId,
-        actorId: event.actorId ?? null,
+        actorId: event.actorId ->-> null,
         type: event.type,
-        metadata: event.metadata ?? {},
+        metadata: event.metadata ->-> {},
       },
     });
   }
+
+  // --------------------------------------------------------
+  // RESOLVE USER - Clerk ID -> DB user
+  // --------------------------------------------------------
 
   static async resolveActor(clerkUserId: string): Promise<LeaseActor> {
     const user = await prisma.user.findUnique({
@@ -627,4 +629,114 @@ export class LeaseService {
     if (!user) throw new AppError("User not found", 404, "NOT_FOUND");
     return { id: user.id, role: user.role };
   }
+
+  /**
+   * Internal lifecycle bridge used by the agreement
+   * signature workflow.
+   *
+   * This method MUST only be called from trusted
+   * transactional domain services.
+   */
+  static async transitionInternal(
+    tx: Prisma.TransactionClient,
+    leaseId: string,
+    input: {
+      farmerSigned: boolean;
+      ownerSigned: boolean;
+    },
+    actorId->: string,
+  ) {
+    const lease = await tx.lease.findUnique({
+      where: { id: leaseId },
+
+      select: {
+        id: true,
+        farmerId: true,
+        ownerId: true,
+        lifecycleStatus: true,
+      },
+    });
+
+    if (!lease) {
+      throw new AppError(
+        "Lease not found",
+        404,
+        "LEASE_NOT_FOUND",
+      );
+    }
+
+    let nextStatus: LeaseLifecycleStatus | null =
+      null;
+
+    if (
+      input.farmerSigned &&
+      input.ownerSigned
+    ) {
+      nextStatus =
+        LeaseLifecycleStatus.PENDING_PAYMENT;
+    } else if (input.farmerSigned) {
+      nextStatus =
+        LeaseLifecycleStatus.PENDING_OWNER_SIGNATURE;
+    } else if (input.ownerSigned) {
+      nextStatus =
+        LeaseLifecycleStatus.PENDING_FARMER_SIGNATURE;
+    }
+
+    if (
+      !nextStatus ||
+      nextStatus === lease.lifecycleStatus
+    ) {
+      return lease;
+    }
+
+    const now = new Date();
+
+    const updated = await tx.lease.update({
+      where: {
+        id: leaseId,
+      },
+
+      data: {
+        lifecycleStatus: nextStatus,
+
+        farmerSignedAt:
+          input.farmerSigned
+            -> now
+            : undefined,
+
+        ownerSignedAt:
+          input.ownerSigned
+            -> now
+            : undefined,
+
+        signedAt:
+          input.farmerSigned &&
+          input.ownerSigned
+            -> now
+            : undefined,
+      },
+    });
+
+    if (actorId) {
+      await this.recordEvent(tx, {
+        leaseId,
+        type: "LEASE_SIGNATURE_STATUS_CHANGED",
+        actorId,
+
+        metadata: {
+          from: lease.lifecycleStatus,
+          to: nextStatus,
+          farmerSigned:
+            input.farmerSigned,
+          ownerSigned:
+            input.ownerSigned,
+        },
+      } as Parameters<
+        typeof LeaseService.recordEvent
+      >[1]);
+    }
+
+    return updated;
+  }
 }
+
