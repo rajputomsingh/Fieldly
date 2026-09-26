@@ -1,176 +1,137 @@
 # 🌾 Fieldly
 
-> Digital Farmland Leasing & Agricultural Intelligence Platform
+> Digital infrastructure for farmland discovery, leasing, bidding, and lease execution.
 
-Fieldly is building trusted digital infrastructure for farmland leasing, agricultural operations, and rural coordination.
+Fieldly is a workflow-driven platform for connecting farmers and landowners through a digital farmland marketplace and managing the leasing lifecycle.
 
-From land discovery and farmer onboarding to lease management and marketplace intelligence, Fieldly streamlines agricultural land operations through a modern digital platform.
+From land discovery and applications to bidding, lease agreements, signatures, payments, and realtime notifications, Fieldly brings the core farmland leasing workflow into a single platform.
 
-[![Release](https://img.shields.io/badge/Release-v0.6.0--beta-blue)](../../releases)
-[![Codename](https://img.shields.io/badge/Codename-Catalyst-purple)](../../releases)
-[![Roadmap](https://img.shields.io/badge/Next-Vanguard-success)](../../milestones)
-[![Status](https://img.shields.io/badge/Status-Active-success)](#)
+[![Release](https://img.shields.io/badge/Release-v0.7.0--beta-blue)](../../releases)
+[![Status](https://img.shields.io/badge/Status-Beta-success)](#)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker)](https://www.docker.com/)
-[![CI/CD](https://img.shields.io/badge/CI/CD-GitHub_Actions-2088FF?logo=github-actions)](https://github.com/features/actions)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma)](https://www.prisma.io/)
+[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk)](https://clerk.com/)
+[![Pusher](https://img.shields.io/badge/Realtime-Pusher-300D4F)](https://pusher.com/)
+[![Redis](https://img.shields.io/badge/Cache-Upstash_Redis-DC382D?logo=redis)](https://upstash.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=github-actions)](https://github.com/features/actions)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE.md)
 
-## App Preview
+## Product Preview
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/a82f166a-8d5b-4926-9da1-9d370f37a30f" alt="Fieldly Dashboard" width="800" />
-  <p><em>Intelligent Farmland Leasing With Fieldly</em></p>
-</div>
+  <div align="center">
+    <img src="https://github.com/user-attachments/assets/a82f166a-8d5b-4926-9da1-9d370f37a30f" alt="Fieldly Dashboard" width="800" />
+  </div>
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/64c8d290-62ee-4d7a-b7d1-9c54676e60a1" alt="Fieldly Platform Interface" width="800" />
-  <p><em>Agricultural Intelligence Platform Interface</em></p>
-</div>
+  <div align="center">
+    <img src="https://github.com/user-attachments/assets/64c8d290-62ee-4d7a-b7d1-9c54676e60a1" alt="Fieldly Platform Interface" width="800" />
+  </div>
 
-## Overview
+## Product
 
-Agricultural land leasing remains heavily fragmented, relying on informal agreements, manual verification processes, and disconnected communication channels.
+Fieldly is a workflow-driven platform for digital farmland discovery, leasing, and marketplace operations.
 
-Fieldly provides a unified platform that enables:
+The platform brings farmers and landowners into a unified workflow covering:
 
-- Verified farmer and landowner onboarding
-- Digital farmland discovery
-- Marketplace-driven land leasing
-- Application and bidding workflows
-- Administrative governance tools
-- Real-time notifications and engagement systems
-- Agricultural intelligence and operational insights
+- Role-based farmer and landowner onboarding
+- Farmland discovery and marketplace listings
+- Land applications and bidding workflows
+- Auction and settlement workflows
+- Lease lifecycle management
+- Digital agreements and signature workflows
+- Payment-related lease progression
+- Administrative governance and security controls
+- Realtime notifications and user engagement
 
-The platform is designed as a scalable foundation for the future of agricultural commerce.
-
-## Mission
-
-Build trusted digital infrastructure for farmland leasing, agricultural coordination, and rural intelligence systems.
+The system is implemented as a modular Next.js application with
+domain-oriented services, PostgreSQL persistence through Prisma,
+Redis-backed infrastructure, and integrations for authentication,
+storage, realtime communication, email, and webhooks.
 
 ## Status
 
-**Current Release:** v0.6.0-beta — Catalyst  
-**Next Milestone:** Vanguard (v0.7.0-beta)  
-**Development Status:** Active  
+**Current Release:** `v0.7.0-beta — Vanguard`
 
-**Road to Production:** Genesis → Atlas → Nexus → Forge → Sentinel → Catalyst → Vanguard → Meridian → Horizon → Frontier
+**Development Status:** Beta
 
-## Product Evolution
+Fieldly is under active development. The current release focuses on the marketplace, leasing workflows, realtime notifications, administrative controls, and supporting infrastructure.
 
-Fieldly is developed through milestone-driven releases inspired by modern SaaS engineering practices.
+## Release History
 
-| Version | Codename | Focus |
-|----------|-----------|--------|
-| v0.1.0-alpha | Genesis | Authentication & Onboarding |
-| v0.2.0-alpha | Atlas | Marketplace Foundation |
-| v0.3.0-alpha | Nexus | Applications, Notifications & Administration |
-| v0.4.0-beta | Forge | Infrastructure & Deployment |
-| v0.5.0-beta | Sentinel | Security & Governance |
-| v0.6.0-beta | Catalyst | Marketplace Refinement & UX |
-| v0.7.0-beta | Vanguard | Verification, Leasing & Payments |
-| v0.8.0-beta | Meridian | Marketplace Intelligence |
-| v0.9.0-rc.1 | Horizon | Production Hardening |
-| v1.0.0 | Frontier | Public Production Release |
+| Version      | Codename | Focus                                        |
+| ------------ | -------- | -------------------------------------------- |
+| v0.1.0-alpha | Genesis  | Authentication & Onboarding                  |
+| v0.2.0-alpha | Atlas    | Marketplace Foundation                       |
+| v0.3.0-alpha | Nexus    | Applications, Notifications & Administration |
+| v0.4.0-beta  | Forge    | Infrastructure & Deployment                  |
+| v0.5.0-beta  | Sentinel | Security & Governance                        |
+| v0.6.0-beta  | Catalyst | Marketplace Refinement & UX                  |
+| v0.7.0-beta  | Vanguard | Verification, Leasing & Payments             |
 
-## Solution
+## Architecture
 
-Fieldly provides a comprehensive ecosystem that transforms agricultural land management:
+  <p align="center">
+    <img
+      src="/public/architecture.png"
+      alt="Fieldly High-Level Architecture"
+      width="100%"
+    />
+  </p>
 
-### Verified Marketplace
-- Digital identity verification for landowners and farmers via Clerk
-- Land parcel validation and documentation
-- Trust scoring and reputation systems
-
-### End-to-End Digital Leasing
-- Automated contract generation and management
-- Real-time updates via Pusher WebSockets
-- Digital workflows with React Hook Form and Zod validation
-
-### Modular Insights Engine
-- Real-time agricultural intelligence from multi-source data
-- Actionable recommendations for irrigation, planting, and harvesting
-- Interactive data visualization with Recharts
-
-### Scalable Architecture
-- Real-time infrastructure with Pusher for live updates
-- Rate limiting with Upstash Redis
-- Type-safe database operations with Prisma ORM
-
-<p align="center">
-  <img
-    src="/public/architecture.png"
-    alt="Fieldly High-Level Architecture"
-    width="100%"
-  />
-</p>
-
-## Features
+## Core Capabilities
 
 ### For Farmers
 
-| Feature | Description |
-|---|---|
-| Land Discovery | Search and filter verified farmland listings |
-| Digital Applications | Submit and track lease applications with real-time status |
-| Agricultural Intelligence | Interactive dashboards with Recharts visualizations |
-| Field Monitoring | Track performance metrics and conditions |
-| Profile Management | Secure identity management via Clerk |
+| Capability       | Description                           |
+| ---------------- | ------------------------------------- |
+| Marketplace      | Discover available farmland           |
+| Applications     | Submit and track applications         |
+| Bidding          | Participate in listing auctions       |
+| Lease Management | Track agreements and lease state      |
+| Notifications    | Receive application and lease updates |
+| Profile          | Manage farmer information             |
 
 ### For Landowners
 
-| Feature | Description |
-|---|---|
-| Asset Management | List and manage multiple land parcels |
-| Farmer Verification | Vet and onboard qualified farmers |
-| Lease Management | End-to-end leasing workflow automation |
-| Utilization Analytics | Track land use with animated statistics |
-| Revenue Optimization | Data-driven pricing recommendations |
+| Capability      | Description                             |
+| --------------- | --------------------------------------- |
+| Land Management | Create and manage land assets           |
+| Listings        | Publish and manage marketplace listings |
+| Applications    | Review incoming applications            |
+| Auctions        | Configure and manage bidding            |
+| Leases          | Manage lease execution and lifecycle    |
+| Documents       | Manage supporting documents             |
 
-### Platform Intelligence
+### Platform
 
-| Capability | Status |
+| Capability | Implementation |
 |---|---|
-| Matching Engine | Active |
-| Real-time Notifications | Active (Pusher) |
-| Data Visualization | Active (Recharts) |
-| Rate Limiting | Active (Upstash) |
-| File Storage | Active (Supabase) |
-| Risk Scoring | Planned |
-| Yield Prediction | Planned |
+| Authentication | Clerk |
+| Authorization | Resource-level guards and permissions |
+| Validation | Zod |
+| Rate Limiting | Upstash Redis |
+| Realtime | Pusher |
+| File Storage | Supabase Storage |
+| Data Visualization | Recharts |
 
 ## Roadmap
 
-### Vanguard (v0.7.0-beta)
-- Identity verification
-- Lease agreement workflows
-- Payment infrastructure
-- Security deposits
+| Release  | Focus                                                                  |
+| -------- | ---------------------------------------------------------------------- |
+| `v0.8.x` | Marketplace discovery, search, recommendations, analytics              |
+| `v0.9.x` | Security hardening, performance, observability, release readiness      |
+| `v1.0.x` | Production release, revenue infrastructure, complete leasing lifecycle |
 
-### Meridian (v0.8.0-beta)
-- Advanced marketplace search
-- Recommendation engine
-- Marketplace intelligence
-- Analytics dashboards
-
-### Horizon (v0.9.0-rc.1)
-- Security hardening
-- Performance optimization
-- Monitoring and observability
-- Release readiness
-
-### Frontier (v1.0.0)
-- Public production launch
-- Revenue infrastructure
-- Complete leasing lifecycle
-- Marketplace operations platform
+> Roadmap items are subject to change as implementation progresses.
 
 ## ⚡Installation & Setup
 
 ### Clone Repository
 
-```bash
+````bash
 git clone https://github.com/rajputomsingh/Fieldly.git
 cd Fieldly
 
@@ -179,7 +140,7 @@ cd Fieldly
 ```bash
 # Install dependencies using pnpm (recommended)
 pnpm install
-```
+````
 
 ### Configure Environment
 
@@ -189,7 +150,7 @@ cp .env.example .env
 ```
 
 👉 Refer to the example file here:  
-**[.env.example](./.env.example)**
+ **[.env.example](./.env.example)**
 
 Update `.env` with required credentials:
 
@@ -225,6 +186,7 @@ The application will be available at:
 ```
 http://localhost:3000
 ```
+
 ### 🐳 Docker Setup
 
 #### Development Environment
@@ -252,6 +214,7 @@ docker compose up -d
 # Stop production services
 docker compose down
 ```
+
 ## Community
 
 - [Contributing Guidelines](./CONTRIBUTING.md)
