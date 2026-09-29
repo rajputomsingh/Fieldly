@@ -23,11 +23,11 @@ From land discovery and applications to bidding, lease agreements, signatures, p
 ## Product Preview
 
   <div align="center">
-    <img src="https://github.com/user-attachments/assets/a82f166a-8d5b-4926-9da1-9d370f37a30f" alt="Fieldly Dashboard" width="800" />
+    <img src="https://github.com/user-attachments/assets/4a2b7ddc-d866-4c16-ada9-ffe25ad79330" alt="Fieldly Dashboard" width="800" />
   </div>
 
   <div align="center">
-    <img src="https://github.com/user-attachments/assets/64c8d290-62ee-4d7a-b7d1-9c54676e60a1" alt="Fieldly Platform Interface" width="800" />
+    <img src="https://github.com/user-attachments/assets/51e41962-99b5-46f8-9be4-7d4a2ac25c74" alt="Fieldly Platform Interface" width="800" />
   </div>
 
 ## Product
@@ -75,7 +75,7 @@ Fieldly is under active development. The current release focuses on the marketpl
 
   <p align="center">
     <img
-      src="/public/architecture.png"
+      src="https://github.com/user-attachments/assets/b6fd11c6-665c-4602-b101-b8d4f6b7748a"
       alt="Fieldly High-Level Architecture"
       width="100%"
     />
