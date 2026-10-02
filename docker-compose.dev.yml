@@ -16,9 +16,9 @@ services:
 
     environment:
       NODE_ENV: development
-      WATCHPACK_POLLING: true
-      CHOKIDAR_USEPOLLING: true
-      NEXT_WEBPACK_USEPOLLING: 1
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_WEBPACK_USEPOLLING: "1"
 
       DATABASE_URL: postgresql://postgres:password@postgres:5432/fieldly
       REDIS_URL: redis://redis:6379
@@ -31,7 +31,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
       redis:
         condition: service_healthy
 
