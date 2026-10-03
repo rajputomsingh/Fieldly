@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # =========================
 # Dependencies
 # =========================
@@ -25,6 +27,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# These are public Next.js build-time variables.
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+
 RUN npm install -g pnpm@10.33.2
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -37,7 +48,7 @@ RUN pnpm build
 
 
 # =========================
-# Runner
+# Production Runner
 # =========================
 
 FROM node:20-alpine AS runner
@@ -52,8 +63,14 @@ RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+COPY --from=builder \
+    --chown=nextjs:nodejs \
+    /app/.next/standalone ./
+
+COPY --from=builder \
+    --chown=nextjs:nodejs \
+    /app/.next/static ./.next/static
 
 USER nextjs
 

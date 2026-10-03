@@ -16,6 +16,5 @@ node_modules
 README.md
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
-
 docker-compose.yml
 docker-compose.dev.yml
