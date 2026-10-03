@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ArrowUpRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 const faqs = [
@@ -39,6 +40,7 @@ const faqs = [
 ];
 
 export default function FAQSection() {
+  const router = useRouter();
   const [active, setActive] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
@@ -51,7 +53,7 @@ export default function FAQSection() {
   const handleRedirect = () => {
     if (redirecting) return;
     setRedirecting(true);
-    window.location.href = "/post-auth";
+    router.push("/post-auth");
   };
 
   if (isLoading) {

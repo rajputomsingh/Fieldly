@@ -4,24 +4,17 @@ services:
       context: .
       dockerfile: Dockerfile.dev
 
-    container_name: fieldly-app-dev
-
-    restart: unless-stopped
-
-    ports:
-      - "3000:3000"
-
     env_file:
-      - .env
+      - .env.docker
 
     environment:
       NODE_ENV: development
-      WATCHPACK_POLLING: true
-      CHOKIDAR_USEPOLLING: true
-      NEXT_WEBPACK_USEPOLLING: 1
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_WEBPACK_USEPOLLING: "1"
 
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/fieldly
-      REDIS_URL: redis://redis:6379
+    ports:
+      - "3000:3000"
 
     volumes:
       - .:/app:delegated
@@ -31,68 +24,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
       redis:
         condition: service_healthy
 
-    networks:
-      - fieldly-network
-
   postgres:
     image: postgres:16-alpine
-
-    container_name: fieldly-postgres-dev
-
-    restart: unless-stopped
 
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: fieldly
 
-    ports:
-      - "5432:5432"
-
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fieldly"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-    networks:
-      - fieldly-network
-
   redis:
     image: redis:7-alpine
-
-    container_name: fieldly-redis-dev
-
-    restart: unless-stopped
-
-    command: redis-server --appendonly yes
-
-    ports:
-      - "6379:6379"
 
     volumes:
       - redis_data_dev:/data
 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-    networks:
-      - fieldly-network
 
 volumes:
   postgres_data_dev:
   redis_data_dev:
-
-networks:
-  fieldly-network:
-    driver: bridge

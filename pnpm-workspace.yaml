@@ -1,3 +1,6 @@
+overrides:
+  deepmerge-ts: 8.0.2
+
 ignoredBuiltDependencies:
   - '@clerk/shared'
   - '@prisma/client'
