@@ -1,0 +1,228 @@
+version: 2.1
+
+executors:
+  node20:
+    docker:
+      - image: cimg/node:20.18
+    resource_class: medium
+    working_directory: ~/project
+
+commands:
+  install-pnpm:
+    steps:
+      - run:
+          name: Enable corepack + pnpm 10.33.2
+          command: |
+            sudo corepack enable
+            corepack prepare pnpm@10.33.2 --activate
+            pnpm --version
+  restore-pnpm-cache:
+    steps:
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+  save-pnpm-cache:
+    steps:
+      - save_cache:
+          key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - ~/.local/share/pnpm/store
+  install-and-generate:
+    steps:
+      - install-pnpm
+      - restore-pnpm-cache
+      - run:
+          name: pnpm install
+          command: pnpm install --frozen-lockfile
+      - run:
+          name: Prisma generate
+          command: pnpm prisma generate
+      - save-pnpm-cache
+
+jobs:
+  install:
+    executor: node20
+    steps:
+      - checkout
+      - install-and-generate
+      - persist_to_workspace:
+          root: .
+          paths:
+            - node_modules
+            - prisma
+
+  lint:
+    executor: node20
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: ESLint
+          command: pnpm lint
+
+  typecheck:
+    executor: node20
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: TypeScript type check
+          command: pnpm exec tsc --noEmit
+
+  build:
+    docker:
+      - image: cimg/node:20.18
+      - image: cimg/postgres:16.0
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: fieldly
+    resource_class: medium
+    working_directory: ~/project
+    environment:
+      DATABASE_URL: postgresql://postgres:password@localhost:5432/fieldly
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Prisma generate
+          command: pnpm prisma generate
+      - run:
+          name: Build Application
+          command: pnpm build
+
+  docker-build:
+    executor: node20
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build image
+          command: |
+            docker build \
+              --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+              --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              --build-arg SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+              --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" \
+              --build-arg CLERK_SECRET_KEY="$CLERK_SECRET_KEY" \
+              --build-arg DATABASE_URL="postgresql://postgres:password@postgres:5432/fieldly" \
+              -t fieldly:latest \
+              -t fieldly:$CIRCLE_SHA1 \
+              .
+      - run:
+          name: Trivy scan (report only)
+          command: |
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+            trivy image --exit-code 0 --severity CRITICAL,HIGH --ignore-unfixed --no-progress fieldly:latest
+
+  docker-push:
+    executor: node20
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Install buildx
+          command: |
+            mkdir -p ~/.docker/cli-plugins
+            curl -sSL -o ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.19.0/buildx-v0.19.0.linux-amd64
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+            docker buildx version
+      - run:
+          name: QEMU
+          command: docker run --privileged --rm tonistiigi/binfmt --install all
+      - run:
+          name: Create builder
+          command: |
+            docker buildx create --use --name multiarch --driver docker-container
+            docker buildx inspect --bootstrap
+      - run:
+          name: Docker Hub login
+          command: echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+      - run:
+          name: Build and push multi-arch
+          command: |
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+              --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+              --build-arg SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+              --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" \
+              --build-arg CLERK_SECRET_KEY="$CLERK_SECRET_KEY" \
+              --build-arg DATABASE_URL="postgresql://postgres:password@postgres:5432/fieldly" \
+              --provenance=true \
+              --sbom=true \
+              -t "$DOCKER_HUB_USERNAME/fieldly:latest" \
+              -t "$DOCKER_HUB_USERNAME/fieldly:$CIRCLE_SHA1" \
+              --push \
+              .
+
+  migrate-approval:
+    executor: node20
+    steps:
+      - run:
+          name: Awaiting manual approval
+          command: echo "Approve in CircleCI UI to run the migration."
+
+  db-migrate:
+    executor: node20
+    steps:
+      - checkout
+      - install-and-generate
+      - run:
+          name: Migration status
+          command: pnpm prisma migrate status
+      - run:
+          name: Run migration
+          command: pnpm prisma migrate deploy
+
+workflows:
+  ci:
+    jobs:
+      - install:
+          filters:
+            branches:
+              only:
+                - master
+                - develop
+                - /feature\/.*/
+      - lint:
+          requires:
+            - install
+      - typecheck:
+          requires:
+            - install
+      - build:
+          requires:
+            - install
+
+  docker:
+    jobs:
+      - docker-build:
+          filters:
+            branches:
+              only: master
+      - docker-push:
+          requires:
+            - docker-build
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^v.*/
+
+  migrate:
+    jobs:
+      - migrate-approval:
+          type: approval
+          filters:
+            branches:
+              only: master
+      - db-migrate:
+          requires:
+            - migrate-approval
