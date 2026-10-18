@@ -4,7 +4,8 @@
 # Dependencies
 # =========================
 
-FROM node:20-alpine AS deps
+# Add --platform=$BUILDPLATFORM to run natively and avoid QEMU emulation slowdowns
+FROM --platform=$BUILDPLATFORM node:20-alpine AS deps
 
 WORKDIR /app
 
@@ -21,7 +22,8 @@ RUN pnpm exec prisma generate
 # Builder
 # =========================
 
-FROM node:20-alpine AS builder
+# Add --platform=$BUILDPLATFORM here as well
+FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -51,6 +53,8 @@ RUN pnpm build
 # Production Runner
 # =========================
 
+# Notice: NO --platform flag here. 
+# This is the actual production image that gets pushed for amd64 and arm64.
 FROM node:20-alpine AS runner
 
 WORKDIR /app
