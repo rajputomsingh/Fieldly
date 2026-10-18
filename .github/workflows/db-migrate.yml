@@ -8,27 +8,31 @@ on:
       - 'prisma/**'
   workflow_dispatch:
 
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
+    environment: Production – fieldlyy
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -36,5 +40,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm prisma generate
 
-      - name: Run Database Push
+      - name: Check migration status
+        run: pnpm prisma migrate status
+
+      - name: Run Database Migration
         run: pnpm prisma migrate deploy
