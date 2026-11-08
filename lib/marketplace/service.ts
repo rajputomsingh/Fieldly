@@ -7,7 +7,8 @@ import { marketplaceCache } from "./cache";
 import { auctionEvents } from "./events";
 import { logger } from "./logger";
 import { MARKETPLACE_CONSTANTS } from "./constants";
-import type { BidInput, FeedFilters, PaginationParams } from "./validation";
+import type { FeedFilters, PaginationParams } from "./validation";
+import type { BidInput } from "./validation";
 import type { ListingDetailDTO, AuctionDTO, BidPlacementResult } from "./types";
 
 class MarketplaceService {
@@ -124,10 +125,11 @@ class MarketplaceService {
 
   // ============================================================
   // Place Bid
-  // ============================================================
   async placeBid(
     listingId: string,
-    bidInput: BidInput,
+    // SECURITY (GHSA-6pch): Override the BidInput type to require farmerId
+    // from the server, since we removed it from the client Zod schema.
+    bidInput: Omit<BidInput, "farmerId"> & { farmerId: string },
   ): Promise<BidPlacementResult> {
     return this.measure("placeBid", async () => {
       const { farmerId, amount, isAutoBid = false } = bidInput;
