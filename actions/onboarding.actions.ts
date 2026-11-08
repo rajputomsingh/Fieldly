@@ -52,9 +52,12 @@ function toNumber(value?: number | string | null) {
 
 /* ============================================================
    GET OR CREATE USER (OPTIMIZED)
+   NOTE: not exported — see GHSA-369m-w6hw-7r89. Exporting
+   an async function from a "use server" module exposes it as
+   a callable server action that returns the full user record.
 ============================================================ */
 
-export async function getOrCreateUser() {
+async function getOrCreateUser() {
   const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
 
@@ -85,31 +88,42 @@ export async function getOrCreateUser() {
 
 /* ============================================================
    SET ROLE
+   SECURITY (GHSA-369m-w6hw-7r89):
+   - Runtime allow-list — TypeScript types do not exist at
+     runtime, so client-supplied role must be re-checked.
+   - Atomic conditional update — closes a race condition where
+     two concurrent requests could both pass the "role already
+     set" check and one silently overwrite the other.
+   - Generic error message on failure — no Prisma error text
+     leaks to the client.
 ============================================================ */
 
-export async function setUserRole(
-  role: "FARMER" | "LANDOWNER"
-): Promise<OnboardingResult> {
+export async function setUserRole(role: unknown): Promise<OnboardingResult> {
   try {
-    const user = await getOrCreateUser();
-
-    if (user.role) {
-      return { success: false, error: "Role already selected" };
+    if (role !== "FARMER" && role !== "LANDOWNER") {
+      return { success: false, error: "Invalid role" };
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
+    const user = await getOrCreateUser();
+
+    const result = await prisma.user.updateMany({
+      where: { id: user.id, role: null },
       data: {
         role,
         onboardingStep: 1,
       },
     });
 
+    if (result.count === 0) {
+      return { success: false, error: "Role already selected" };
+    }
+
     return { success: true };
   } catch (error) {
+    console.error("Set user role failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to set role",
+      error: "Failed to set role",
     };
   }
 }
