@@ -116,9 +116,15 @@ jobs:
       - run:
           name: Trivy scan (report only)
           command: |
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.50.1
-            trivy image --exit-code 0 --severity CRITICAL,HIGH --ignore-unfixed --no-progress fieldly:latest
-
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              aquasec/trivy:latest image \
+              --exit-code 0 \
+              --severity CRITICAL,HIGH \
+              --ignore-unfixed \
+              --no-progress \
+              fieldly:latest
+              
   docker-push:
     executor: node20
     steps:
